@@ -451,3 +451,266 @@ func (m *SFTPManager) ListLocalFiles(req LocalListFilesRequest) (LocalListFilesR
 
 	return LocalListFilesResponse{Success: true, Files: files, Path: path}, nil
 }
+
+type ResumeUploadRequest struct {
+	SessionID  string `json:"sessionId"`
+	LocalPath  string `json:"localPath"`
+	RemotePath string `json:"remotePath"`
+	Offset     int64  `json:"offset"`
+}
+
+type ResumeUploadResponse struct {
+	Success    bool   `json:"success"`
+	Error      string `json:"error,omitempty"`
+	SkipBytes  int64  `json:"skipBytes,omitempty"`
+	TotalBytes int64  `json:"totalBytes,omitempty"`
+}
+
+func (m *SFTPManager) ResumeUpload(req ResumeUploadRequest) (ResumeUploadResponse, error) {
+	m.mu.RLock()
+	client, ok := m.clients[req.SessionID]
+	m.mu.RUnlock()
+
+	if !ok {
+		return ResumeUploadResponse{Success: false, Error: "SFTP session not connected"}, nil
+	}
+
+	localFile, err := os.Open(req.LocalPath)
+	if err != nil {
+		return ResumeUploadResponse{Success: false, Error: err.Error()}, nil
+	}
+	defer localFile.Close()
+
+	localStat, err := localFile.Stat()
+	if err != nil {
+		return ResumeUploadResponse{Success: false, Error: err.Error()}, nil
+	}
+
+	offset := req.Offset
+	if offset < 0 {
+		remoteStat, err := client.Stat(req.RemotePath)
+		if err == nil && remoteStat != nil {
+			offset = remoteStat.Size()
+		} else {
+			offset = 0
+		}
+	}
+
+	if offset >= localStat.Size() {
+		return ResumeUploadResponse{Success: true, SkipBytes: localStat.Size(), TotalBytes: localStat.Size()}, nil
+	}
+
+	_, err = localFile.Seek(offset, io.SeekStart)
+	if err != nil {
+		return ResumeUploadResponse{Success: false, Error: err.Error()}, nil
+	}
+
+	remoteFile, err := client.OpenFile(req.RemotePath, os.O_WRONLY|os.O_APPEND)
+	if err != nil {
+		return ResumeUploadResponse{Success: false, Error: err.Error()}, nil
+	}
+	defer remoteFile.Close()
+
+	buf := make([]byte, 32768)
+	var written int64 = offset
+	total := localStat.Size()
+
+	for {
+		nr, readErr := localFile.Read(buf)
+		if nr > 0 {
+			nw, writeErr := remoteFile.Write(buf[:nr])
+			if writeErr != nil {
+				return ResumeUploadResponse{Success: false, Error: writeErr.Error()}, nil
+			}
+			written += int64(nw)
+
+			if m.Ctx != nil && total > 0 {
+				progress := float64(written) / float64(total) * 100
+				runtime.EventsEmit(m.Ctx, "sftp:upload:progress", map[string]interface{}{
+					"sessionId":  req.SessionID,
+					"localPath":  req.LocalPath,
+					"remotePath": req.RemotePath,
+					"progress":   progress,
+					"written":    written,
+					"total":      total,
+					"resumed":    true,
+				})
+			}
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return ResumeUploadResponse{Success: false, Error: readErr.Error()}, nil
+		}
+	}
+
+	return ResumeUploadResponse{Success: true, SkipBytes: offset, TotalBytes: total}, nil
+}
+
+type ResumeDownloadRequest struct {
+	SessionID  string `json:"sessionId"`
+	RemotePath string `json:"remotePath"`
+	LocalPath  string `json:"localPath"`
+	Offset     int64  `json:"offset"`
+}
+
+type ResumeDownloadResponse struct {
+	Success    bool   `json:"success"`
+	Error      string `json:"error,omitempty"`
+	SkipBytes  int64  `json:"skipBytes,omitempty"`
+	TotalBytes int64  `json:"totalBytes,omitempty"`
+}
+
+func (m *SFTPManager) ResumeDownload(req ResumeDownloadRequest) (ResumeDownloadResponse, error) {
+	m.mu.RLock()
+	client, ok := m.clients[req.SessionID]
+	m.mu.RUnlock()
+
+	if !ok {
+		return ResumeDownloadResponse{Success: false, Error: "SFTP session not connected"}, nil
+	}
+
+	remoteFile, err := client.Open(req.RemotePath)
+	if err != nil {
+		return ResumeDownloadResponse{Success: false, Error: err.Error()}, nil
+	}
+	defer remoteFile.Close()
+
+	remoteStat, err := remoteFile.Stat()
+	if err != nil {
+		return ResumeDownloadResponse{Success: false, Error: err.Error()}, nil
+	}
+
+	if err := os.MkdirAll(filepath.Dir(req.LocalPath), 0755); err != nil {
+		return ResumeDownloadResponse{Success: false, Error: err.Error()}, nil
+	}
+
+	offset := req.Offset
+	if offset < 0 {
+		localStat, err := os.Stat(req.LocalPath)
+		if err == nil {
+			offset = localStat.Size()
+		} else {
+			offset = 0
+		}
+	}
+
+	if offset >= remoteStat.Size() {
+		return ResumeDownloadResponse{Success: true, SkipBytes: remoteStat.Size(), TotalBytes: remoteStat.Size()}, nil
+	}
+
+	_, err = remoteFile.Seek(offset, io.SeekStart)
+	if err != nil {
+		return ResumeDownloadResponse{Success: false, Error: err.Error()}, nil
+	}
+
+	localFile, err := os.OpenFile(req.LocalPath, os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return ResumeDownloadResponse{Success: false, Error: err.Error()}, nil
+	}
+	defer localFile.Close()
+
+	_, err = localFile.Seek(0, io.SeekEnd)
+	if err != nil {
+		return ResumeDownloadResponse{Success: false, Error: err.Error()}, nil
+	}
+
+	buf := make([]byte, 32768)
+	var written int64 = offset
+	total := remoteStat.Size()
+
+	for {
+		nr, readErr := remoteFile.Read(buf)
+		if nr > 0 {
+			nw, writeErr := localFile.Write(buf[:nr])
+			if writeErr != nil {
+				return ResumeDownloadResponse{Success: false, Error: writeErr.Error()}, nil
+			}
+			written += int64(nw)
+
+			if m.Ctx != nil && total > 0 {
+				progress := float64(written) / float64(total) * 100
+				runtime.EventsEmit(m.Ctx, "sftp:download:progress", map[string]interface{}{
+					"sessionId":  req.SessionID,
+					"remotePath": req.RemotePath,
+					"localPath":  req.LocalPath,
+					"progress":   progress,
+					"written":    written,
+					"total":      total,
+					"resumed":    true,
+				})
+			}
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return ResumeDownloadResponse{Success: false, Error: readErr.Error()}, nil
+		}
+	}
+
+	return ResumeDownloadResponse{Success: true, SkipBytes: offset, TotalBytes: total}, nil
+}
+
+type GetTransferStateRequest struct {
+	SessionID  string `json:"sessionId"`
+	RemotePath string `json:"remotePath"`
+	LocalPath  string `json:"localPath"`
+	Direction  string `json:"direction"`
+}
+
+type GetTransferStateResponse struct {
+	Success    bool   `json:"success"`
+	Error      string `json:"error,omitempty"`
+	LocalSize  int64  `json:"localSize,omitempty"`
+	RemoteSize int64  `json:"remoteSize,omitempty"`
+	CanResume  bool   `json:"canResume,omitempty"`
+}
+
+func (m *SFTPManager) GetTransferState(req GetTransferStateRequest) (GetTransferStateResponse, error) {
+	m.mu.RLock()
+	client, ok := m.clients[req.SessionID]
+	m.mu.RUnlock()
+
+	if !ok {
+		return GetTransferStateResponse{Success: false, Error: "SFTP session not connected"}, nil
+	}
+
+	var localSize int64 = -1
+	var remoteSize int64 = -1
+
+	if req.Direction == "upload" {
+		localStat, err := os.Stat(req.LocalPath)
+		if err == nil {
+			localSize = localStat.Size()
+		}
+		remoteStat, err := client.Stat(req.RemotePath)
+		if err == nil {
+			remoteSize = remoteStat.Size()
+		}
+	} else {
+		remoteStat, err := client.Stat(req.RemotePath)
+		if err == nil {
+			remoteSize = remoteStat.Size()
+		}
+		localStat, err := os.Stat(req.LocalPath)
+		if err == nil {
+			localSize = localStat.Size()
+		}
+	}
+
+	canResume := false
+	if req.Direction == "upload" && localSize > 0 && remoteSize > 0 && remoteSize < localSize {
+		canResume = true
+	} else if req.Direction == "download" && remoteSize > 0 && localSize > 0 && localSize < remoteSize {
+		canResume = true
+	}
+
+	return GetTransferStateResponse{
+		Success:    true,
+		LocalSize:  localSize,
+		RemoteSize: remoteSize,
+		CanResume:  canResume,
+	}, nil
+}

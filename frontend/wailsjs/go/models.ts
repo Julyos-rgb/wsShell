@@ -350,6 +350,44 @@ export namespace sftp {
 	        this.mode = source["mode"];
 	    }
 	}
+	export class GetTransferStateRequest {
+	    sessionId: string;
+	    remotePath: string;
+	    localPath: string;
+	    direction: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GetTransferStateRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.remotePath = source["remotePath"];
+	        this.localPath = source["localPath"];
+	        this.direction = source["direction"];
+	    }
+	}
+	export class GetTransferStateResponse {
+	    success: boolean;
+	    error?: string;
+	    localSize?: number;
+	    remoteSize?: number;
+	    canResume?: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new GetTransferStateResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.error = source["error"];
+	        this.localSize = source["localSize"];
+	        this.remoteSize = source["remoteSize"];
+	        this.canResume = source["canResume"];
+	    }
+	}
 	export class ListFilesRequest {
 	    sessionId: string;
 	    path: string;
@@ -504,6 +542,78 @@ export namespace sftp {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.success = source["success"];
 	        this.error = source["error"];
+	    }
+	}
+	export class ResumeDownloadRequest {
+	    sessionId: string;
+	    remotePath: string;
+	    localPath: string;
+	    offset: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ResumeDownloadRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.remotePath = source["remotePath"];
+	        this.localPath = source["localPath"];
+	        this.offset = source["offset"];
+	    }
+	}
+	export class ResumeDownloadResponse {
+	    success: boolean;
+	    error?: string;
+	    skipBytes?: number;
+	    totalBytes?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ResumeDownloadResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.error = source["error"];
+	        this.skipBytes = source["skipBytes"];
+	        this.totalBytes = source["totalBytes"];
+	    }
+	}
+	export class ResumeUploadRequest {
+	    sessionId: string;
+	    localPath: string;
+	    remotePath: string;
+	    offset: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ResumeUploadRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.localPath = source["localPath"];
+	        this.remotePath = source["remotePath"];
+	        this.offset = source["offset"];
+	    }
+	}
+	export class ResumeUploadResponse {
+	    success: boolean;
+	    error?: string;
+	    skipBytes?: number;
+	    totalBytes?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ResumeUploadResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.error = source["error"];
+	        this.skipBytes = source["skipBytes"];
+	        this.totalBytes = source["totalBytes"];
 	    }
 	}
 	export class SFTPManager {

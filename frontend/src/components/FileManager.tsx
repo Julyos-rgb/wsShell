@@ -1,17 +1,21 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { useConnectionStore, useUIStore, useTransferStore } from '../stores/ui'
-import { FileEntry } from '../types'
 import {
-  ListFiles,
-  ListLocalFiles,
-  UploadFile,
-  DownloadFile,
-  DeleteFile,
-  Mkdir,
+    ListFiles,
+    ListLocalFiles,
+    UploadFile,
+    DownloadFile,
+    DeleteFile,
+    Mkdir,
+    GetTransferState,
+    ResumeUpload,
+    ResumeDownload,
 } from '../../wailsjs/go/sftp/SFTPManager'
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
+import { formatSize } from '../utils/formatSize'
+import { FileEntry } from '../types'
+import { useConnectionStore, useUIStore, useTransferStore } from '../stores/ui'
 
-const formatSize = (bytes: number): string => {
+const formatSizeLocal = (bytes: number): string => {
     if (bytes === 0) return '-'
     if (bytes < 1024) return `${bytes}B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}K`

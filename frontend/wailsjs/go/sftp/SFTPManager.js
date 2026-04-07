@@ -18,6 +18,10 @@ export function DownloadFile(arg1) {
   return window['go']['sftp']['SFTPManager']['DownloadFile'](arg1);
 }
 
+export function GetTransferState(arg1) {
+  return window['go']['sftp']['SFTPManager']['GetTransferState'](arg1);
+}
+
 export function ListFiles(arg1) {
   return window['go']['sftp']['SFTPManager']['ListFiles'](arg1);
 }
@@ -32,6 +36,14 @@ export function Mkdir(arg1) {
 
 export function Rename(arg1) {
   return window['go']['sftp']['SFTPManager']['Rename'](arg1);
+}
+
+export function ResumeDownload(arg1) {
+  return window['go']['sftp']['SFTPManager']['ResumeDownload'](arg1);
+}
+
+export function ResumeUpload(arg1) {
+  return window['go']['sftp']['SFTPManager']['ResumeUpload'](arg1);
 }
 
 export function UploadFile(arg1) {

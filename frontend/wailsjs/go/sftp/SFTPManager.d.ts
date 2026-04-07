@@ -10,6 +10,8 @@ export function Disconnect(arg1:string):Promise<void>;
 
 export function DownloadFile(arg1:sftp.DownloadRequest):Promise<sftp.DownloadResponse>;
 
+export function GetTransferState(arg1:sftp.GetTransferStateRequest):Promise<sftp.GetTransferStateResponse>;
+
 export function ListFiles(arg1:sftp.ListFilesRequest):Promise<sftp.ListFilesResponse>;
 
 export function ListLocalFiles(arg1:sftp.LocalListFilesRequest):Promise<sftp.LocalListFilesResponse>;
@@ -17,5 +19,9 @@ export function ListLocalFiles(arg1:sftp.LocalListFilesRequest):Promise<sftp.Loc
 export function Mkdir(arg1:sftp.MkdirRequest):Promise<sftp.MkdirResponse>;
 
 export function Rename(arg1:sftp.RenameRequest):Promise<sftp.RenameResponse>;
+
+export function ResumeDownload(arg1:sftp.ResumeDownloadRequest):Promise<sftp.ResumeDownloadResponse>;
+
+export function ResumeUpload(arg1:sftp.ResumeUploadRequest):Promise<sftp.ResumeUploadResponse>;
 
 export function UploadFile(arg1:sftp.UploadRequest):Promise<sftp.UploadResponse>;
