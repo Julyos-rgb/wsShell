@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/bin/
+.superpowers/
+*.exe
+*.dll
+*.so
+*.dylib
+frontend/dist/
+.DS_Store
+Thumbs.db
+*.db
+*.sqlite
+docs

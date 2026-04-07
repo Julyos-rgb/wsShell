@@ -1,0 +1,29 @@
+{
+  "name": "wsShell",
+  "outputFilename": "wsShell",
+  "frontend": {
+    "dir": "frontend",
+    "install": "npm install",
+    "build": "npm run build",
+    "dev": "npm run dev"
+  },
+  "wails": {
+    "buildMode": "default"
+  },
+  "info": {
+    "productName": "wsShell",
+    "companyName": "wsShell",
+    "copyright": "Copyright (c) 2026 wsShell",
+    "version": "0.1.0"
+  },
+  "windows": {
+    "icon": "frontend/src/assets/icon.ico",
+    "console": true
+  },
+  "darwin": {
+    "icon": "frontend/src/assets/icon.icns"
+  },
+  "linux": {
+    "icon": "frontend/src/assets/icon.png"
+  }
+}
