@@ -135,71 +135,142 @@ const FileManager: React.FC = () => {
         }
     }, [transfers, updateTransfer])
 
-    const navigateLocal = (path: string) => {
-        setLocalHistory((prev) => [...prev, localPath])
-        loadLocalFiles(path)
-    }
-
-    const navigateRemote = (path: string) => {
-        setRemoteHistory((prev) => [...prev, remotePath])
-        loadRemoteFiles(path)
-    }
-
-    const goBackLocal = () => {
-        if (localHistory.length > 0) {
-            const prev = localHistory[localHistory.length - 1]
-            setLocalHistory((h) => h.slice(0, -1))
-            loadLocalFiles(prev)
-        } else if (localPath.includes('/') || localPath.includes('\\')) {
-            const parent = localPath.split(/[/\\]/).slice(0, -1).join('/') || '/'
-            loadLocalFiles(parent)
-        }
-    }
-
-    const goBackRemote = () => {
-        if (remoteHistory.length > 0) {
-            const prev = remoteHistory[remoteHistory.length - 1]
-            setRemoteHistory((h) => h.slice(0, -1))
-            loadRemoteFiles(prev)
-        } else if (remotePath !== '/') {
-            const parts = remotePath.split('/').filter(Boolean)
-            parts.pop()
-            const parent = '/' + parts.join('/')
-            loadRemoteFiles(parent || '/')
-        }
-    }
-
     const handleUpload = async () => {
         if (!selectedLocal || !getSftpSessionId()) return
         const file = localFiles.find((f) => f.path === selectedLocal)
         if (!file || file.type === 'directory') return
+        const taskId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+        addTransfer({
+            id: taskId,
+            type: 'upload',
+            localPath: file.path,
+            remotePath: remotePath + '/' + file.name,
+            progress: 0,
+            total: file.size,
+            written: 0,
+            status: 'pending',
+        })
         try {
-            await UploadFile({
-                sessionId: getSftpSessionId()!,
+            const state = await GetTransferState({
+                sessionId,
                 localPath: file.path,
                 remotePath: remotePath + '/' + file.name,
             })
+            if (state.canResume) {
+                const confirmed = window.confirm('确定要恢复上传吗?')
+                return
+            }
+            const resume = await ResumeUpload({
+                sessionId,
+                localPath: file.path,
+                remotePath: remotePath + '/' + file.name,
+            })
+            updateTransfer(taskId, { status: 'completed', progress: 100 })
+            loadRemoteFiles()
+        } catch (err: any) {
+            console.error('resume upload error:', err)
+            }
+        } else if (file.size > remoteSize) {
+            const state = await GetTransferState({
+                sessionId,
+                localPath: file.path,
+                remotePath: remotePath + '/' + file.name,
+            })
+            if (state.canResume) {
+                const confirmed = window.confirm('确定要恢复下载吗?')
+                return
+            }
+            const resume = await ResumeDownload({
+                sessionId,
+                localPath: file.path,
+                remotePath: remotePath + '\\' + file.name,
+            })
+            updateTransfer(taskId, { status: 'completed', progress: 100 })
+            loadLocalFiles()
+        } catch (err: any) {
+            console.error('resume download error:', err)
+            }
+        }
+    }
+    const handleDeleteRemote = async () => {
+        if (!selectedRemote || !getSftpSessionId()) return
+        try {
+            await DeleteFile({ sessionId: getSftpSessionId()!, path: selectedRemote })
+            loadRemoteFiles()
+            setSelectedRemote(null)
+        } catch (e) {
+            console.error('delete error:', e)
+        }
+    }
+    const handleMkdirRemote = async () => {
+        const name = prompt('目录名称:')
+        if (!name || !getSftpSessionId()) return
+        try {
+            await Mkdir({
+                sessionId: getSftpSessionId()!,
+                path: remotePath === '/' ? '/' + name : remotePath + '/' + name,
+            } as any)
             loadRemoteFiles()
         } catch (e) {
-            console.error('upload error:', e)
+            console.error('mkdir error:', e)
         }
     }
-
-    const handleDownload = async () => {
-        if (!selectedRemote || !getSftpSessionId()) return
-        const file = remoteFiles.find((f) => f.path === selectedRemote)
-        if (!file || file.type === 'directory') return
-        try {
-            await DownloadFile({
-                sessionId: getSftpSessionId()!,
-                remotePath: file.path,
-                localPath: localPath + '\\' + file.name,
-            } as any)
-            loadLocalFiles()
-        } catch (e) {
-            console.error('download error:', e)
+    const handleDragOver = useCallback((e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setIsDragging(true)
+    }, [])
+    const handleDragLeave = useCallback((e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setIsDragging(false)
+    }, [])
+    const handleDrop = useCallback(async (e: React.DragEvent) => {
+        e.preventDefault()
+        e.stopPropagation()
+        setIsDragging(false)
+        const sessionId = getSftpSessionId()
+        if (!sessionId) return
+        const files = e.dataTransfer?.files
+        if (!files || files.length === 0) return
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i]
+            if (!file.name) continue
+            const taskId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+            addTransfer({
+                id: taskId,
+                type: 'upload',
+                localPath: (file as any).path,
+                remotePath: remotePath + '/' + file.name,
+                progress: 0,
+                total: file.size,
+                written: 0,
+                status: 'pending',
+            })
+            try {
+                const state = await GetTransferState({
+                    sessionId,
+                    localPath: (file as any).path,
+                    remotePath: remotePath + '/' + file.name,
+                })
+                if (state.canResume) {
+                    const confirmed = window.confirm('确定要恢复上传吗?')
+                    return
+                }
+                const resume = await ResumeUpload({
+                    sessionId,
+                    localPath: (file as any).path,
+                    remotePath: remotePath + '/' + file.name,
+                })
+                updateTransfer(taskId, { status: 'completed', progress: 100 })
+                loadRemoteFiles()
+            } catch (err: any) {
+                console.error('resume upload error:', err)
+                updateTransfer(taskId, { status: 'error', error: String(err) })
+            }
         }
-    }
+        loadRemoteFiles()
+    }, [getSftpSessionId, remotePath, addTransfer, updateTransfer, loadRemoteFiles])
 
     const handleDeleteRemote = async () => {
         if (!selectedRemote || !getSftpSessionId()) return
