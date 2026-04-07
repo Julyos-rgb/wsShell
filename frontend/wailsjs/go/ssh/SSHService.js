@@ -10,20 +10,12 @@ export function Disconnect(arg1) {
   return window['go']['ssh']['SSHService']['Disconnect'](arg1);
 }
 
-export function GetClient(arg1) {
-  return window['go']['ssh']['SSHService']['GetClient'](arg1);
-}
-
 export function IsConnected(arg1) {
   return window['go']['ssh']['SSHService']['IsConnected'](arg1);
 }
 
 export function ResizeTerminal(arg1) {
   return window['go']['ssh']['SSHService']['ResizeTerminal'](arg1);
-}
-
-export function SetContext(arg1) {
-  return window['go']['ssh']['SSHService']['SetContext'](arg1);
 }
 
 export function WriteToSession(arg1) {

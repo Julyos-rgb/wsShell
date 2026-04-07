@@ -7,39 +7,37 @@ import (
 	"path/filepath"
 	"sync"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 var (
-	db   *sql.DB
-	once sync.Once
+	db     *sql.DB
+	once   sync.Once
+	dbErr  error
 )
 
 func GetDB() (*sql.DB, error) {
-	var initErr error
 	once.Do(func() {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
-			initErr = err
+			dbErr = err
 			return
 		}
 		configDir := filepath.Join(homeDir, ".wsShell")
 		if err := os.MkdirAll(configDir, 0755); err != nil {
-			initErr = err
+			dbErr = err
 			return
 		}
 		dbPath := filepath.Join(configDir, "wsShell.db")
-		db, initErr = sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
-		if initErr != nil {
+		db, dbErr = sql.Open("sqlite", dbPath+"?_journal_mode=WAL&_busy_timeout=5000")
+		if dbErr != nil {
 			return
 		}
 		db.SetMaxOpenConns(1)
-		if initErr = runMigrations(db); initErr != nil {
-			return
-		}
+		dbErr = runMigrations(db)
 	})
-	if initErr != nil {
-		return nil, fmt.Errorf("database init failed: %w", initErr)
+	if dbErr != nil {
+		return nil, fmt.Errorf("database init failed: %w", dbErr)
 	}
 	return db, nil
 }

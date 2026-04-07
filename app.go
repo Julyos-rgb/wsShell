@@ -26,9 +26,8 @@ func NewApp() *App {
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
-	a.sshService.SetContext(ctx)
-	a.sftpManager.SetContext(ctx)
-	a.configManager.Startup(ctx)
+	a.sshService.Ctx = ctx
+	a.sftpManager.Ctx = ctx
 	log.Println("wsShell started")
 }
 

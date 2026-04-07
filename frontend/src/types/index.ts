@@ -5,7 +5,7 @@ export interface ServerConfig {
   host: string
   port: number
   username: string
-  authType: 'password' | 'key'
+  authType: string
   password: string
   privateKey: string
   vncEnabled: boolean
@@ -32,7 +32,7 @@ export interface ConnectionInfo {
 export interface FileEntry {
   name: string
   size: number
-  type: 'file' | 'directory'
+  type: string
   path: string
   modTime?: string
   mode?: string
@@ -40,12 +40,12 @@ export interface FileEntry {
 
 export interface TransferTask {
   id: string
-  type: 'upload' | 'download'
+  type: string
   localPath: string
   remotePath: string
   progress: number
   total: number
   written: number
-  status: 'pending' | 'transferring' | 'completed' | 'error'
+  status: string
   error?: string
 }

@@ -15,7 +15,7 @@ type SSHService struct {
 	mu       sync.RWMutex
 	sessions map[string]*sshSession
 	clients  map[string]*sshcrypto.Client
-	ctx      context.Context
+	Ctx      context.Context
 }
 
 type sshSession struct {
@@ -29,12 +29,6 @@ func NewSSHService() *SSHService {
 		sessions: make(map[string]*sshSession),
 		clients:  make(map[string]*sshcrypto.Client),
 	}
-}
-
-func (s *SSHService) SetContext(ctx context.Context) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.ctx = ctx
 }
 
 type ConnectRequest struct {
@@ -147,8 +141,8 @@ func (s *SSHService) Connect(req ConnectRequest) (ConnectResponse, error) {
 			}
 			if n > 0 {
 				data := string(buf[:n])
-				if s.ctx != nil {
-					runtime.EventsEmit(s.ctx, "ssh:"+sessionID+":stdout", data)
+				if s.Ctx != nil {
+					runtime.EventsEmit(s.Ctx, "ssh:"+sessionID+":stdout", data)
 				}
 			}
 		}
@@ -163,8 +157,8 @@ func (s *SSHService) Connect(req ConnectRequest) (ConnectResponse, error) {
 			}
 			if n > 0 {
 				data := string(buf[:n])
-				if s.ctx != nil {
-					runtime.EventsEmit(s.ctx, "ssh:"+sessionID+":stderr", data)
+				if s.Ctx != nil {
+					runtime.EventsEmit(s.Ctx, "ssh:"+sessionID+":stderr", data)
 				}
 			}
 		}
@@ -278,7 +272,7 @@ func (s *SSHService) IsConnected(sessionID string) (IsConnectedResponse, error) 
 	return IsConnectedResponse{Connected: ok}, nil
 }
 
-func (s *SSHService) GetClient(sessionID string) *sshcrypto.Client {
+func (s *SSHService) getClient(sessionID string) *sshcrypto.Client {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.clients[sessionID]

@@ -10,16 +10,16 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/sftp"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	sshcrypto "golang.org/x/crypto/ssh"
-	"github.com/pkg/sftp"
 )
 
 type SFTPManager struct {
 	mu         sync.RWMutex
 	clients    map[string]*sftp.Client
 	sshClients map[string]*sshcrypto.Client
-	ctx        context.Context
+	Ctx        context.Context
 }
 
 func NewSFTPManager() *SFTPManager {
@@ -27,12 +27,6 @@ func NewSFTPManager() *SFTPManager {
 		clients:    make(map[string]*sftp.Client),
 		sshClients: make(map[string]*sshcrypto.Client),
 	}
-}
-
-func (m *SFTPManager) SetContext(ctx context.Context) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.ctx = ctx
 }
 
 type FileInfo struct {
@@ -227,9 +221,9 @@ func (m *SFTPManager) UploadFile(req UploadRequest) (UploadResponse, error) {
 			}
 			written += int64(nw)
 
-			if m.ctx != nil && total > 0 {
+			if m.Ctx != nil && total > 0 {
 				progress := float64(written) / float64(total) * 100
-				runtime.EventsEmit(m.ctx, "sftp:upload:progress", map[string]interface{}{
+				runtime.EventsEmit(m.Ctx, "sftp:upload:progress", map[string]interface{}{
 					"sessionId":  req.SessionID,
 					"localPath":  req.LocalPath,
 					"remotePath": req.RemotePath,
@@ -304,9 +298,9 @@ func (m *SFTPManager) DownloadFile(req DownloadRequest) (DownloadResponse, error
 			}
 			written += int64(nw)
 
-			if m.ctx != nil && total > 0 {
+			if m.Ctx != nil && total > 0 {
 				progress := float64(written) / float64(total) * 100
-				runtime.EventsEmit(m.ctx, "sftp:download:progress", map[string]interface{}{
+				runtime.EventsEmit(m.Ctx, "sftp:download:progress", map[string]interface{}{
 					"sessionId":  req.SessionID,
 					"remotePath": req.RemotePath,
 					"localPath":  req.LocalPath,

@@ -268,7 +268,7 @@ const Sidebar: React.FC = () => {
             onClick={async () => {
               await disconnectServer(contextMenu.server)
               const { DeleteServer } = await import('../../wailsjs/go/config/ConfigManager')
-              await DeleteServer({ id: contextMenu.server.id })
+              await DeleteServer({ id: contextMenu.server.id } as any)
               loadServers()
               setContextMenu(null)
             }}

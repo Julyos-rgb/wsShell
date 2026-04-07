@@ -92,7 +92,7 @@ const Terminal: React.FC = () => {
       fitAddon.fit()
       const sessionId = getSessionId()
       if (sessionId && term.rows && term.cols) {
-        ResizeTerminal({ sessionId, rows: term.rows, cols: term.cols }).catch(() => {})
+        ResizeTerminal({ sessionId, rows: term.rows, cols: term.cols } as any).catch(() => {})
       }
     }
 
@@ -133,7 +133,7 @@ const Terminal: React.FC = () => {
         fitAddonRef.current.fit()
       }
       if (term.rows && term.cols) {
-        ResizeTerminal({ sessionId, rows: term.rows, cols: term.cols }).catch(() => {})
+        ResizeTerminal({ sessionId, rows: term.rows, cols: term.cols } as any).catch(() => {})
       }
     }, 200)
 

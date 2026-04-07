@@ -60,14 +60,14 @@ const AddServerDialog: React.FC = () => {
 
     try {
       if (editingServer) {
-        const resp = await UpdateServer({ server: form })
+        const resp = await UpdateServer({ server: form } as any)
         if (!resp.success) {
           setError(resp.error || '保存失败')
           setSaving(false)
           return
         }
       } else {
-        const resp = await AddServer({ server: form })
+        const resp = await AddServer({ server: form } as any)
         if (!resp.success) {
           setError(resp.error || '添加失败')
           setSaving(false)
@@ -76,7 +76,7 @@ const AddServerDialog: React.FC = () => {
       }
 
       const result = await GetServers()
-      setServers(result.servers || [])
+      setServers((result.servers || []))
       handleClose()
     } catch (e: any) {
       setError(e.toString())

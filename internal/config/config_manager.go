@@ -1,7 +1,6 @@
 package config
 
 import (
-	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -11,7 +10,7 @@ import (
 	"wsShell/internal/crypto"
 	"wsShell/internal/store"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 type ServerConfig struct {
@@ -37,13 +36,10 @@ type ServerConfig struct {
 type ConfigManager struct{}
 
 func NewConfigManager() *ConfigManager {
-	return &ConfigManager{}
-}
-
-func (c *ConfigManager) Startup(ctx context.Context) {
 	if err := crypto.InitMasterKey(); err != nil {
 		log.Printf("Warning: crypto init failed: %v", err)
 	}
+	return &ConfigManager{}
 }
 
 type GetServersResponse struct {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { useConnectionStore } from '../stores/ui'
+import { useConnectionStore, useUIStore } from '../stores/ui'
 import { FileEntry } from '../types'
 import {
   ListFiles,
@@ -8,7 +8,6 @@ import {
   DownloadFile,
   DeleteFile,
   Mkdir,
-  Rename,
 } from '../../wailsjs/go/sftp/SFTPManager'
 
 const formatSize = (bytes: number): string => {
@@ -19,8 +18,38 @@ const formatSize = (bytes: number): string => {
   return `${(bytes / 1024 / 1024 / 1024).toFixed(1)}G`
 }
 
+interface FileItemProps {
+  file: FileEntry
+  isSelected: boolean
+  onSelect: (path: string) => void
+  onNavigate: (path: string) => void
+}
+
+const FileItem: React.FC<FileItemProps> = ({ file, isSelected, onSelect, onNavigate }) => (
+  <div
+    className={`flex justify-between items-center px-3 py-1 cursor-pointer transition-colors ${
+      isSelected
+        ? 'bg-secondary/50 text-primary'
+        : 'hover:bg-surface text-gray-300'
+    }`}
+    onClick={() => onSelect(file.path)}
+    onDoubleClick={() => file.type === 'directory' ? onNavigate(file.path) : undefined}
+  >
+    <div className="flex items-center gap-2 min-w-0">
+      <span className="text-sm flex-shrink-0">
+        {file.type === 'directory' ? '📁' : '📄'}
+      </span>
+      <span className="truncate text-sm">{file.name}</span>
+    </div>
+    <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
+      {file.type === 'file' ? formatSize(file.size) : ''}
+    </span>
+  </div>
+)
+
 const FileManager: React.FC = () => {
-  const { activeServerId, connections, sftpSessions } = useConnectionStore()
+  const { sftpSessions } = useConnectionStore()
+  const activeServerId = useUIStore((s) => s.activeServerId)
   const [localFiles, setLocalFiles] = useState<FileEntry[]>([])
   const [remoteFiles, setRemoteFiles] = useState<FileEntry[]>([])
   const [localPath, setLocalPath] = useState('')
@@ -58,7 +87,7 @@ const FileManager: React.FC = () => {
     try {
       const resp = await ListFiles({ sessionId, path: path || remotePath })
       if (resp.success) {
-        setRemoteFiles(resp.files || [])
+        setRemoteFiles((resp.files || []) as FileEntry[])
         setRemotePath(resp.path || '/')
       }
     } catch (e) {
@@ -138,7 +167,7 @@ const FileManager: React.FC = () => {
         sessionId: getSftpSessionId()!,
         remotePath: file.path,
         localPath: localPath + '\\' + file.name,
-      })
+      } as any)
       loadLocalFiles()
     } catch (e) {
       console.error('download error:', e)
@@ -163,7 +192,7 @@ const FileManager: React.FC = () => {
       await Mkdir({
         sessionId: getSftpSessionId()!,
         path: remotePath === '/' ? '/' + name : remotePath + '/' + name,
-      })
+      } as any)
       loadRemoteFiles()
     } catch (e) {
       console.error('mkdir error:', e)
@@ -202,28 +231,13 @@ const FileManager: React.FC = () => {
               <div className="text-center text-gray-500 text-sm py-4">加载中...</div>
             ) : (
               localFiles.map((file, i) => (
-                <div
+                <FileItem
                   key={i}
-                  className={`flex justify-between items-center px-3 py-1 cursor-pointer transition-colors ${
-                    selectedLocal === file.path
-                      ? 'bg-secondary/50 text-primary'
-                      : 'hover:bg-surface text-gray-300'
-                  }`}
-                  onClick={() => setSelectedLocal(file.path)}
-                  onDoubleClick={() =>
-                    file.type === 'directory' ? navigateLocal(file.path) : undefined
-                  }
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-sm flex-shrink-0">
-                      {file.type === 'directory' ? '📁' : '📄'}
-                    </span>
-                    <span className="truncate text-sm">{file.name}</span>
-                  </div>
-                  <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                    {file.type === 'file' ? formatSize(file.size) : ''}
-                  </span>
-                </div>
+                  file={file}
+                  isSelected={selectedLocal === file.path}
+                  onSelect={setSelectedLocal}
+                  onNavigate={navigateLocal}
+                />
               ))
             )}
           </div>
@@ -262,28 +276,13 @@ const FileManager: React.FC = () => {
               <div className="text-center text-gray-500 text-sm py-4">加载中...</div>
             ) : (
               remoteFiles.map((file, i) => (
-                <div
+                <FileItem
                   key={i}
-                  className={`flex justify-between items-center px-3 py-1 cursor-pointer transition-colors ${
-                    selectedRemote === file.path
-                      ? 'bg-secondary/50 text-primary'
-                      : 'hover:bg-surface text-gray-300'
-                  }`}
-                  onClick={() => setSelectedRemote(file.path)}
-                  onDoubleClick={() =>
-                    file.type === 'directory' ? navigateRemote(file.path) : undefined
-                  }
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-sm flex-shrink-0">
-                      {file.type === 'directory' ? '📁' : '📄'}
-                    </span>
-                    <span className="truncate text-sm">{file.name}</span>
-                  </div>
-                  <span className="text-xs text-gray-500 flex-shrink-0 ml-2">
-                    {file.type === 'file' ? formatSize(file.size) : ''}
-                  </span>
-                </div>
+                  file={file}
+                  isSelected={selectedRemote === file.path}
+                  onSelect={setSelectedRemote}
+                  onNavigate={navigateRemote}
+                />
               ))
             )}
           </div>

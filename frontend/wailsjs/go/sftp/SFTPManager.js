@@ -34,10 +34,6 @@ export function Rename(arg1) {
   return window['go']['sftp']['SFTPManager']['Rename'](arg1);
 }
 
-export function SetContext(arg1) {
-  return window['go']['sftp']['SFTPManager']['SetContext'](arg1);
-}
-
 export function UploadFile(arg1) {
   return window['go']['sftp']['SFTPManager']['UploadFile'](arg1);
 }

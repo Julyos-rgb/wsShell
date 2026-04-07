@@ -14,10 +14,6 @@ export function GetServers() {
   return window['go']['config']['ConfigManager']['GetServers']();
 }
 
-export function Startup(arg1) {
-  return window['go']['config']['ConfigManager']['Startup'](arg1);
-}
-
 export function ToggleFavorite(arg1) {
   return window['go']['config']['ConfigManager']['ToggleFavorite'](arg1);
 }
