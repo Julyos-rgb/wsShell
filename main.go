@@ -30,6 +30,7 @@ func main() {
 			app.sshService,
 			app.sftpManager,
 			app.configManager,
+			app.vncProxy,
 		},
 	})
 

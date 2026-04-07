@@ -4,7 +4,11 @@ import {ssh} from '../models';
 
 export function Connect(arg1:ssh.ConnectRequest):Promise<ssh.ConnectResponse>;
 
+export function CreateShell(arg1:ssh.CreateShellRequest):Promise<ssh.CreateShellResponse>;
+
 export function Disconnect(arg1:string):Promise<void>;
+
+export function GetClient(arg1:string):Promise<ssh.Client>;
 
 export function IsConnected(arg1:string):Promise<ssh.IsConnectedResponse>;
 

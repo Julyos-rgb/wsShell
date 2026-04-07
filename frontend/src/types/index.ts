@@ -49,3 +49,12 @@ export interface TransferTask {
   status: string
   error?: string
 }
+
+export interface TerminalTab {
+  id: string
+  serverId: string
+  sessionId: string
+  label: string
+  serverName: string
+  connected: boolean
+}

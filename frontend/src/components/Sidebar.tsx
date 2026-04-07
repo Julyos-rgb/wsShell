@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useUIStore, useConnectionStore } from '../stores/ui'
+import { useUIStore, useConnectionStore, useTerminalTabStore } from '../stores/ui'
 import { ServerConfig } from '../types'
 import { GetServers } from '../../wailsjs/go/config/ConfigManager'
 import { Connect as SSHConnect } from '../../wailsjs/go/ssh/SSHService'
@@ -18,6 +18,7 @@ const Sidebar: React.FC = () => {
     connections, addConnection, removeConnection,
     addSftpSession, removeSftpSession,
   } = useConnectionStore()
+  const { addTerminalTab } = useTerminalTabStore()
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
   const [connecting, setConnecting] = useState<string | null>(null)
   const [contextMenu, setContextMenu] = useState<{ server: ServerConfig; x: number; y: number } | null>(null)
@@ -70,6 +71,15 @@ const Sidebar: React.FC = () => {
           connectedAt: Date.now(),
         })
 
+        addTerminalTab({
+          id: `${server.id}-main`,
+          serverId: server.id,
+          sessionId: sshResp.sessionId || '',
+          label: server.name,
+          serverName: server.name,
+          connected: true,
+        })
+
         try {
           const sftpResp = await SFTPConnect({
             host: server.host,
@@ -117,6 +127,11 @@ const Sidebar: React.FC = () => {
         removeSftpSession(server.id)
       }
       removeConnection(server.id)
+      
+      const { terminalTabs, removeTerminalTab } = useTerminalTabStore.getState()
+      terminalTabs
+        .filter(t => t.serverId === server.id)
+        .forEach(t => removeTerminalTab(t.id))
     }
     if (activeServerId === server.id) {
       setActiveServerId(null)

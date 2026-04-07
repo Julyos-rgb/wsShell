@@ -46,6 +46,16 @@ type ConnectResponse struct {
 	SessionID string `json:"sessionId,omitempty"`
 }
 
+type CreateSessionRequest struct {
+	SessionID string `json:"sessionId"`
+}
+
+type CreateSessionResponse struct {
+	Success    bool   `json:"success"`
+	Error      string `json:"error,omitempty"`
+	NewSession string `json:"newSession,omitempty"`
+}
+
 func (s *SSHService) Connect(req ConnectRequest) (ConnectResponse, error) {
 	if req.Port == 0 {
 		req.Port = 22
@@ -272,8 +282,134 @@ func (s *SSHService) IsConnected(sessionID string) (IsConnectedResponse, error) 
 	return IsConnectedResponse{Connected: ok}, nil
 }
 
-func (s *SSHService) getClient(sessionID string) *sshcrypto.Client {
+func (s *SSHService) GetClient(sessionID string) *sshcrypto.Client {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.clients[sessionID]
+}
+
+type CreateShellRequest struct {
+	BaseSessionID string `json:"baseSessionId"`
+}
+
+type CreateShellResponse struct {
+	Success   bool   `json:"success"`
+	Error     string `json:"error,omitempty"`
+	SessionID string `json:"sessionId,omitempty"`
+}
+
+func (s *SSHService) CreateShell(req CreateShellRequest) (CreateShellResponse, error) {
+	s.mu.RLock()
+	client, ok := s.clients[req.BaseSessionID]
+	s.mu.RUnlock()
+
+	if !ok {
+		return CreateShellResponse{Success: false, Error: "base connection not found"}, nil
+	}
+
+	session, err := client.NewSession()
+	if err != nil {
+		return CreateShellResponse{Success: false, Error: fmt.Sprintf("create session failed: %v", err)}, nil
+	}
+
+	stdinPipe, err := session.StdinPipe()
+	if err != nil {
+		session.Close()
+		return CreateShellResponse{Success: false, Error: err.Error()}, nil
+	}
+
+	stdoutPipe, err := session.StdoutPipe()
+	if err != nil {
+		session.Close()
+		return CreateShellResponse{Success: false, Error: err.Error()}, nil
+	}
+
+	stderrPipe, err := session.StderrPipe()
+	if err != nil {
+		session.Close()
+		return CreateShellResponse{Success: false, Error: err.Error()}, nil
+	}
+
+	modes := sshcrypto.TerminalModes{
+		sshcrypto.ECHO:          1,
+		sshcrypto.TTY_OP_ISPEED: 14400,
+		sshcrypto.TTY_OP_OSPEED: 14400,
+	}
+
+	if err := session.RequestPty("xterm-256color", 40, 120, modes); err != nil {
+		session.Close()
+		return CreateShellResponse{Success: false, Error: fmt.Sprintf("request PTY failed: %v", err)}, nil
+	}
+
+	if err := session.Shell(); err != nil {
+		session.Close()
+		return CreateShellResponse{Success: false, Error: fmt.Sprintf("start shell failed: %v", err)}, nil
+	}
+
+	s.mu.Lock()
+	sessionID := fmt.Sprintf("%s#%d", req.BaseSessionID, len(s.sessions)+1)
+	ss := &sshSession{
+		session: session,
+		stdin:   make(chan string, 256),
+		done:    make(chan struct{}),
+	}
+	s.sessions[sessionID] = ss
+	s.mu.Unlock()
+
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, err := stdoutPipe.Read(buf)
+			if err != nil {
+				close(ss.done)
+				return
+			}
+			if n > 0 {
+				data := string(buf[:n])
+				if s.Ctx != nil {
+					runtime.EventsEmit(s.Ctx, "ssh:"+sessionID+":stdout", data)
+				}
+			}
+		}
+	}()
+
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, err := stderrPipe.Read(buf)
+			if err != nil {
+				return
+			}
+			if n > 0 {
+				data := string(buf[:n])
+				if s.Ctx != nil {
+					runtime.EventsEmit(s.Ctx, "ssh:"+sessionID+":stderr", data)
+				}
+			}
+		}
+	}()
+
+	go func() {
+		for {
+			select {
+			case <-ss.done:
+				return
+			case data, ok := <-ss.stdin:
+				if !ok {
+					return
+				}
+				if _, err := stdinPipe.Write([]byte(data)); err != nil {
+					log.Printf("stdin write error: %v", err)
+					return
+				}
+			}
+		}
+	}()
+
+	log.Printf("SSH shell created: %s", sessionID)
+
+	return CreateShellResponse{
+		Success:   true,
+		SessionID: sessionID,
+	}, nil
 }

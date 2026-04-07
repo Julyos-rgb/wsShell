@@ -13,3 +13,7 @@ export function GetSFTPManager() {
 export function GetSSHService() {
   return window['go']['main']['App']['GetSSHService']();
 }
+
+export function GetVNCProxy() {
+  return window['go']['main']['App']['GetVNCProxy']();
+}

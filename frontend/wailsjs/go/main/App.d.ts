@@ -3,9 +3,12 @@
 import {config} from '../models';
 import {sftp} from '../models';
 import {ssh} from '../models';
+import {vnc} from '../models';
 
 export function GetConfigManager():Promise<config.ConfigManager>;
 
 export function GetSFTPManager():Promise<sftp.SFTPManager>;
 
 export function GetSSHService():Promise<ssh.SSHService>;
+
+export function GetVNCProxy():Promise<vnc.Proxy>;

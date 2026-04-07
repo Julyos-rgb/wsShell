@@ -553,6 +553,18 @@ export namespace sftp {
 
 export namespace ssh {
 	
+	export class Client {
+	    Conn: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new Client(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.Conn = source["Conn"];
+	    }
+	}
 	export class ConnectRequest {
 	    host: string;
 	    port: number;
@@ -582,6 +594,34 @@ export namespace ssh {
 	
 	    static createFrom(source: any = {}) {
 	        return new ConnectResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.error = source["error"];
+	        this.sessionId = source["sessionId"];
+	    }
+	}
+	export class CreateShellRequest {
+	    baseSessionId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CreateShellRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.baseSessionId = source["baseSessionId"];
+	    }
+	}
+	export class CreateShellResponse {
+	    success: boolean;
+	    error?: string;
+	    sessionId?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CreateShellResponse(source);
 	    }
 	
 	    constructor(source: any = {}) {
@@ -665,6 +705,85 @@ export namespace ssh {
 	
 	    static createFrom(source: any = {}) {
 	        return new WriteResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.error = source["error"];
+	    }
+	}
+
+}
+
+export namespace vnc {
+	
+	export class Proxy {
+	
+	
+	    static createFrom(source: any = {}) {
+	        return new Proxy(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	
+	    }
+	}
+	export class StartProxyRequest {
+	    host: string;
+	    port: number;
+	    password: string;
+	    tunnel: boolean;
+	    sshSessionId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new StartProxyRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.host = source["host"];
+	        this.port = source["port"];
+	        this.password = source["password"];
+	        this.tunnel = source["tunnel"];
+	        this.sshSessionId = source["sshSessionId"];
+	    }
+	}
+	export class StartProxyResponse {
+	    success: boolean;
+	    error?: string;
+	    wsUrl?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new StartProxyResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.error = source["error"];
+	        this.wsUrl = source["wsUrl"];
+	    }
+	}
+	export class StopProxyRequest {
+	    sessionId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new StopProxyRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	    }
+	}
+	export class StopProxyResponse {
+	    success: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new StopProxyResponse(source);
 	    }
 	
 	    constructor(source: any = {}) {

@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	db     *sql.DB
-	once   sync.Once
-	dbErr  error
+	db    *sql.DB
+	once  sync.Once
+	dbErr error
 )
 
 func GetDB() (*sql.DB, error) {

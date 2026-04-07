@@ -1,5 +1,6 @@
 import Sidebar from './components/Sidebar'
 import Terminal from './components/Terminal'
+import VncViewer from './components/VncViewer'
 import FileManager from './components/FileManager'
 import StatusBar from './components/StatusBar'
 import AddServerDialog from './components/AddServerDialog'
@@ -61,15 +62,7 @@ function App() {
 
           <div className="flex-1 overflow-hidden">
             {activeTab === 'terminal' && <Terminal />}
-            {activeTab === 'vnc' && (
-              <div className="flex items-center justify-center h-full text-gray-600">
-                <div className="text-center">
-                  <div className="text-4xl mb-3">🖥</div>
-                  <div>VNC 远程桌面功能开发中</div>
-                  <div className="text-sm mt-1">将在第二阶段实现</div>
-                </div>
-              </div>
-            )}
+            {activeTab === 'vnc' && <VncViewer />}
             {activeTab === 'file' && <FileManager />}
           </div>
         </div>

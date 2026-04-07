@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { ServerConfig, ConnectionInfo, TransferTask } from '../types'
+import { ServerConfig, ConnectionInfo, TransferTask, TerminalTab } from '../types'
 
 interface UIState {
   activeTab: 'terminal' | 'vnc' | 'file'
@@ -21,6 +21,17 @@ interface UIState {
   setStatusMessage: (msg: string) => void
   setLatency: (ms: number) => void
   setTransferRate: (rate: string) => void
+}
+
+interface TerminalTabState {
+  terminalTabs: TerminalTab[]
+  activeTerminalTabId: string | null
+
+  addTerminalTab: (tab: TerminalTab) => void
+  removeTerminalTab: (tabId: string) => void
+  setActiveTerminalTab: (tabId: string | null) => void
+  updateTerminalTab: (tabId: string, updates: Partial<TerminalTab>) => void
+  getTerminalTab: (tabId: string) => TerminalTab | undefined
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -113,4 +124,42 @@ export const useTransferStore = create<TransferState>((set) => ({
     set((state) => ({
       transfers: state.transfers.filter((t) => t.id !== id),
     })),
+}))
+
+export const useTerminalTabStore = create<TerminalTabState>((set, get) => ({
+  terminalTabs: [],
+  activeTerminalTabId: null,
+
+  addTerminalTab: (tab) =>
+    set((state) => ({
+      terminalTabs: [...state.terminalTabs, tab],
+      activeTerminalTabId: tab.id,
+    })),
+
+  removeTerminalTab: (tabId) =>
+    set((state) => {
+      const idx = state.terminalTabs.findIndex((t) => t.id === tabId)
+      const newTabs = state.terminalTabs.filter((t) => t.id !== tabId)
+      let newActiveId = state.activeTerminalTabId
+      if (state.activeTerminalTabId === tabId) {
+        if (newTabs.length > 0) {
+          const newIdx = Math.min(idx, newTabs.length - 1)
+          newActiveId = newTabs[newIdx].id
+        } else {
+          newActiveId = null
+        }
+      }
+      return { terminalTabs: newTabs, activeTerminalTabId: newActiveId }
+    }),
+
+  setActiveTerminalTab: (tabId) => set({ activeTerminalTabId: tabId }),
+
+  updateTerminalTab: (tabId, updates) =>
+    set((state) => ({
+      terminalTabs: state.terminalTabs.map((t) =>
+        t.id === tabId ? { ...t, ...updates } : t
+      ),
+    })),
+
+  getTerminalTab: (tabId) => get().terminalTabs.find((t) => t.id === tabId),
 }))

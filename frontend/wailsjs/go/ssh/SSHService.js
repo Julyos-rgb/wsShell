@@ -6,8 +6,16 @@ export function Connect(arg1) {
   return window['go']['ssh']['SSHService']['Connect'](arg1);
 }
 
+export function CreateShell(arg1) {
+  return window['go']['ssh']['SSHService']['CreateShell'](arg1);
+}
+
 export function Disconnect(arg1) {
   return window['go']['ssh']['SSHService']['Disconnect'](arg1);
+}
+
+export function GetClient(arg1) {
+  return window['go']['ssh']['SSHService']['GetClient'](arg1);
 }
 
 export function IsConnected(arg1) {
