@@ -5,7 +5,7 @@ const StatusBar: React.FC = () => {
   const { activeServerId, statusMessage, latency, transferRate } = useUIStore()
   const { connections } = useConnectionStore()
 
-  const conn = activeServerId ? connections.get(activeServerId) : null
+  const conn = activeServerId ? connections[activeServerId] : null
 
   return (
     <div className="h-6 bg-surface-400 border-t border-border/40 flex items-center px-3 text-[10px] text-text-dim flex-shrink-0">

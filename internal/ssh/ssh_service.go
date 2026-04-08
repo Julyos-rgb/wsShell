@@ -8,6 +8,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"wsShell/internal/store"
@@ -17,11 +18,13 @@ import (
 )
 
 type SSHService struct {
-	mu        sync.RWMutex
-	sessions  map[string]*sshSession
-	clients   map[string]*sshcrypto.Client
-	latencies map[string]int64
-	Ctx       context.Context
+	mu           sync.RWMutex
+	sessions     map[string]*sshSession
+	clients      map[string]*sshcrypto.Client
+	latencies    map[string]int64
+	shellCounter atomic.Int64
+	hostKeyRepo  store.HostKeyRepository
+	Ctx          context.Context
 }
 
 type sshSession struct {
@@ -29,13 +32,19 @@ type sshSession struct {
 	stdin    chan string
 	done     chan struct{}
 	stopPing chan struct{}
+	closed   sync.Once
 }
 
 func NewSSHService() *SSHService {
+	repo, err := store.NewHostKeyRepository()
+	if err != nil {
+		log.Printf("Warning: failed to init host key repo: %v", err)
+	}
 	return &SSHService{
-		sessions:  make(map[string]*sshSession),
-		clients:   make(map[string]*sshcrypto.Client),
-		latencies: make(map[string]int64),
+		sessions:    make(map[string]*sshSession),
+		clients:     make(map[string]*sshcrypto.Client),
+		latencies:   make(map[string]int64),
+		hostKeyRepo: repo,
 	}
 }
 
@@ -75,6 +84,9 @@ func (s *SSHService) Connect(req ConnectRequest) (ConnectResponse, error) {
 		req.Port = 22
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
 	hostKeyCallback := s.createHostKeyCallback(req.Host)
 
 	config := &sshcrypto.ClientConfig{
@@ -94,8 +106,33 @@ func (s *SSHService) Connect(req ConnectRequest) (ConnectResponse, error) {
 	}
 
 	addr := fmt.Sprintf("%s:%d", req.Host, req.Port)
-	client, err := sshcrypto.Dial("tcp", addr, config)
+
+	dialer := &net.Dialer{Timeout: config.Timeout}
+	conn, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
+		var hkErr *hostKeyError
+		if errors.As(err, &hkErr) {
+			resp := ConnectResponse{Success: false, Error: hkErr.Error()}
+			resp.HostKeyHost = hkErr.Host
+			resp.HostKeyType = hkErr.KeyType
+			resp.HostKeyFingerprint = hkErr.Fingerprint
+			if hkErr.IsMismatch {
+				resp.HostKeyMismatch = true
+				resp.ExpectedFingerprint = hkErr.ExpectedFingerprint
+			} else {
+				resp.NeedsHostKeyTrust = true
+			}
+			return resp, nil
+		}
+		if ctx.Err() == context.Canceled {
+			return ConnectResponse{Success: false, Error: "connection cancelled"}, nil
+		}
+		return ConnectResponse{Success: false, Error: err.Error()}, nil
+	}
+
+	sshConn, chans, reqs, err := sshcrypto.NewClientConn(conn, addr, config)
+	if err != nil {
+		conn.Close()
 		var hkErr *hostKeyError
 		if errors.As(err, &hkErr) {
 			resp := ConnectResponse{Success: false, Error: hkErr.Error()}
@@ -112,6 +149,8 @@ func (s *SSHService) Connect(req ConnectRequest) (ConnectResponse, error) {
 		}
 		return ConnectResponse{Success: false, Error: err.Error()}, nil
 	}
+
+	client := sshcrypto.NewClient(sshConn, chans, reqs)
 
 	sessionID := fmt.Sprintf("%s@%s:%d", req.Username, req.Host, req.Port)
 
@@ -297,8 +336,7 @@ func (s *SSHService) Disconnect(sessionID string) error {
 	defer s.mu.Unlock()
 
 	if ss, ok := s.sessions[sessionID]; ok {
-		close(ss.stdin)
-		close(ss.stopPing)
+		ss.closeOnce()
 		ss.session.Close()
 		delete(s.sessions, sessionID)
 	}
@@ -310,6 +348,13 @@ func (s *SSHService) Disconnect(sessionID string) error {
 
 	log.Printf("SSH disconnected: %s", sessionID)
 	return nil
+}
+
+func (ss *sshSession) closeOnce() {
+	ss.closed.Do(func() {
+		close(ss.stdin)
+		close(ss.stopPing)
+	})
 }
 
 type IsConnectedResponse struct {
@@ -325,6 +370,10 @@ func (s *SSHService) IsConnected(sessionID string) (IsConnectedResponse, error) 
 
 func (s *SSHService) GetClient(sessionID string) *sshcrypto.Client {
 	return s.resolveClient(sessionID)
+}
+
+func (s *SSHService) GetHostKeyCallback(host string) sshcrypto.HostKeyCallback {
+	return s.createHostKeyCallback(host)
 }
 
 type CreateShellRequest struct {
@@ -398,13 +447,16 @@ func (s *SSHService) CreateShell(req CreateShellRequest) (CreateShellResponse, e
 		return CreateShellResponse{Success: false, Error: fmt.Sprintf("start shell failed: %v", err)}, nil
 	}
 
-	s.mu.Lock()
-	sessionID := fmt.Sprintf("%s#%d", req.BaseSessionID, len(s.sessions)+1)
+	seq := s.shellCounter.Add(1)
+	sessionID := fmt.Sprintf("%s#%d", req.BaseSessionID, seq)
+
 	ss := &sshSession{
 		session: session,
 		stdin:   make(chan string, 256),
 		done:    make(chan struct{}),
 	}
+
+	s.mu.Lock()
 	s.sessions[sessionID] = ss
 	s.mu.Unlock()
 
@@ -482,22 +534,24 @@ func (s *SSHService) startKeepalive(sessionID string, client *sshcrypto.Client, 
 			s.mu.Lock()
 			if err != nil {
 				s.latencies[sessionID] = -1
-				if s.Ctx != nil {
+			} else {
+				s.latencies[sessionID] = elapsed
+			}
+			s.mu.Unlock()
+
+			if s.Ctx != nil {
+				if err != nil {
 					runtime.EventsEmit(s.Ctx, "ssh:"+sessionID+":keepalive:failed", map[string]interface{}{
 						"sessionId": sessionID,
 						"error":     err.Error(),
 					})
-				}
-			} else {
-				s.latencies[sessionID] = elapsed
-				if s.Ctx != nil {
+				} else {
 					runtime.EventsEmit(s.Ctx, "ssh:"+sessionID+":keepalive", map[string]interface{}{
 						"sessionId": sessionID,
 						"latency":   elapsed,
 					})
 				}
 			}
-			s.mu.Unlock()
 		}
 	}
 }
@@ -544,13 +598,12 @@ func (s *SSHService) createHostKeyCallback(host string) sshcrypto.HostKeyCallbac
 		keyType := key.Type()
 		fingerprint := store.FingerprintSHA256(key.Marshal())
 
-		repo, err := store.NewHostKeyRepository()
-		if err != nil {
-			log.Printf("Host key check: cannot open DB, allowing: %v", err)
+		if s.hostKeyRepo == nil {
+			log.Printf("Host key check: repo not available, allowing")
 			return nil
 		}
 
-		knownKeys, err := repo.GetByHost(hostname)
+		knownKeys, err := s.hostKeyRepo.GetByHost(hostname)
 		if err != nil {
 			log.Printf("Host key check: DB error, allowing: %v", err)
 			return nil

@@ -4,11 +4,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"wsShell/internal/store"
 
 	"github.com/pkg/sftp"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -17,15 +20,16 @@ import (
 
 type SSHClientProvider interface {
 	GetClient(sessionID string) *sshcrypto.Client
+	GetHostKeyCallback(host string) sshcrypto.HostKeyCallback
 }
 
 type SFTPManager struct {
-	mu           sync.RWMutex
-	clients      map[string]*sftp.Client
-	sshClients   map[string]*sshcrypto.Client
-	ownsClient   map[string]bool
-	sshProvider  SSHClientProvider
-	Ctx          context.Context
+	mu          sync.RWMutex
+	clients     map[string]*sftp.Client
+	sshClients  map[string]*sshcrypto.Client
+	ownsClient  map[string]bool
+	sshProvider SSHClientProvider
+	Ctx         context.Context
 }
 
 func NewSFTPManager() *SFTPManager {
@@ -69,9 +73,16 @@ func (m *SFTPManager) Connect(req ConnectRequest) (ConnectResponse, error) {
 		req.Port = 22
 	}
 
+	var hostKeyCallback sshcrypto.HostKeyCallback
+	if m.sshProvider != nil {
+		hostKeyCallback = m.sshProvider.GetHostKeyCallback(req.Host)
+	} else {
+		hostKeyCallback = m.createStandaloneHostKeyCallback()
+	}
+
 	config := &sshcrypto.ClientConfig{
 		User:            req.Username,
-		HostKeyCallback: sshcrypto.InsecureIgnoreHostKey(),
+		HostKeyCallback: hostKeyCallback,
 		Timeout:         10 * time.Second,
 	}
 
@@ -112,6 +123,32 @@ func (m *SFTPManager) Connect(req ConnectRequest) (ConnectResponse, error) {
 	m.mu.Unlock()
 
 	return ConnectResponse{Success: true, SessionID: sessionID}, nil
+}
+
+func (m *SFTPManager) createStandaloneHostKeyCallback() sshcrypto.HostKeyCallback {
+	repo, err := store.NewHostKeyRepository()
+	if err != nil {
+		return sshcrypto.InsecureIgnoreHostKey()
+	}
+	return func(hostname string, remote net.Addr, key sshcrypto.PublicKey) error {
+		keyType := key.Type()
+		fingerprint := store.FingerprintSHA256(key.Marshal())
+
+		knownKeys, err := repo.GetByHost(hostname)
+		if err != nil {
+			return nil
+		}
+
+		for _, known := range knownKeys {
+			if known.KeyType == keyType {
+				if known.Fingerprint == fingerprint {
+					return nil
+				}
+				return fmt.Errorf("HOST KEY MISMATCH for %s", hostname)
+			}
+		}
+		return nil
+	}
 }
 
 type ConnectFromSSHRequest struct {
@@ -257,6 +294,7 @@ func (m *SFTPManager) UploadFile(req UploadRequest) (UploadResponse, error) {
 	buf := make([]byte, 32768)
 	var written int64
 	total := stat.Size()
+	var lastEmit time.Time
 
 	for {
 		nr, readErr := localFile.Read(buf)
@@ -268,15 +306,19 @@ func (m *SFTPManager) UploadFile(req UploadRequest) (UploadResponse, error) {
 			written += int64(nw)
 
 			if m.Ctx != nil && total > 0 {
+				now := time.Now()
 				progress := float64(written) / float64(total) * 100
-				runtime.EventsEmit(m.Ctx, "sftp:upload:progress", map[string]interface{}{
-					"sessionId":  req.SessionID,
-					"localPath":  req.LocalPath,
-					"remotePath": req.RemotePath,
-					"progress":   progress,
-					"written":    written,
-					"total":      total,
-				})
+				if now.Sub(lastEmit) >= 200*time.Millisecond || progress >= 100 || readErr == io.EOF {
+					lastEmit = now
+					runtime.EventsEmit(m.Ctx, "sftp:upload:progress", map[string]interface{}{
+						"sessionId":  req.SessionID,
+						"localPath":  req.LocalPath,
+						"remotePath": req.RemotePath,
+						"progress":   progress,
+						"written":    written,
+						"total":      total,
+					})
+				}
 			}
 		}
 		if readErr == io.EOF {
@@ -334,6 +376,7 @@ func (m *SFTPManager) DownloadFile(req DownloadRequest) (DownloadResponse, error
 	buf := make([]byte, 32768)
 	var written int64
 	total := stat.Size()
+	var lastEmit time.Time
 
 	for {
 		nr, readErr := remoteFile.Read(buf)
@@ -345,15 +388,19 @@ func (m *SFTPManager) DownloadFile(req DownloadRequest) (DownloadResponse, error
 			written += int64(nw)
 
 			if m.Ctx != nil && total > 0 {
+				now := time.Now()
 				progress := float64(written) / float64(total) * 100
-				runtime.EventsEmit(m.Ctx, "sftp:download:progress", map[string]interface{}{
-					"sessionId":  req.SessionID,
-					"remotePath": req.RemotePath,
-					"localPath":  req.LocalPath,
-					"progress":   progress,
-					"written":    written,
-					"total":      total,
-				})
+				if now.Sub(lastEmit) >= 200*time.Millisecond || progress >= 100 || readErr == io.EOF {
+					lastEmit = now
+					runtime.EventsEmit(m.Ctx, "sftp:download:progress", map[string]interface{}{
+						"sessionId":  req.SessionID,
+						"remotePath": req.RemotePath,
+						"localPath":  req.LocalPath,
+						"progress":   progress,
+						"written":    written,
+						"total":      total,
+					})
+				}
 			}
 		}
 		if readErr == io.EOF {
@@ -478,12 +525,17 @@ func (m *SFTPManager) ListLocalFiles(req LocalListFilesRequest) (LocalListFilesR
 			fileType = "directory"
 		}
 
+		fullPath := filepath.Join(path, entry.Name())
+
 		info, err := entry.Info()
 		if err != nil {
+			files = append(files, FileInfo{
+				Name: entry.Name(),
+				Type: fileType,
+				Path: fullPath,
+			})
 			continue
 		}
-
-		fullPath := filepath.Join(path, entry.Name())
 
 		files = append(files, FileInfo{
 			Name:    entry.Name(),
@@ -560,6 +612,7 @@ func (m *SFTPManager) ResumeUpload(req ResumeUploadRequest) (ResumeUploadRespons
 	buf := make([]byte, 32768)
 	var written int64 = offset
 	total := localStat.Size()
+	var lastEmit time.Time
 
 	for {
 		nr, readErr := localFile.Read(buf)
@@ -571,16 +624,20 @@ func (m *SFTPManager) ResumeUpload(req ResumeUploadRequest) (ResumeUploadRespons
 			written += int64(nw)
 
 			if m.Ctx != nil && total > 0 {
+				now := time.Now()
 				progress := float64(written) / float64(total) * 100
-				runtime.EventsEmit(m.Ctx, "sftp:upload:progress", map[string]interface{}{
-					"sessionId":  req.SessionID,
-					"localPath":  req.LocalPath,
-					"remotePath": req.RemotePath,
-					"progress":   progress,
-					"written":    written,
-					"total":      total,
-					"resumed":    true,
-				})
+				if now.Sub(lastEmit) >= 200*time.Millisecond || progress >= 100 || readErr == io.EOF {
+					lastEmit = now
+					runtime.EventsEmit(m.Ctx, "sftp:upload:progress", map[string]interface{}{
+						"sessionId":  req.SessionID,
+						"localPath":  req.LocalPath,
+						"remotePath": req.RemotePath,
+						"progress":   progress,
+						"written":    written,
+						"total":      total,
+						"resumed":    true,
+					})
+				}
 			}
 		}
 		if readErr == io.EOF {
@@ -665,6 +722,7 @@ func (m *SFTPManager) ResumeDownload(req ResumeDownloadRequest) (ResumeDownloadR
 	buf := make([]byte, 32768)
 	var written int64 = offset
 	total := remoteStat.Size()
+	var lastEmit time.Time
 
 	for {
 		nr, readErr := remoteFile.Read(buf)
@@ -676,16 +734,20 @@ func (m *SFTPManager) ResumeDownload(req ResumeDownloadRequest) (ResumeDownloadR
 			written += int64(nw)
 
 			if m.Ctx != nil && total > 0 {
+				now := time.Now()
 				progress := float64(written) / float64(total) * 100
-				runtime.EventsEmit(m.Ctx, "sftp:download:progress", map[string]interface{}{
-					"sessionId":  req.SessionID,
-					"remotePath": req.RemotePath,
-					"localPath":  req.LocalPath,
-					"progress":   progress,
-					"written":    written,
-					"total":      total,
-					"resumed":    true,
-				})
+				if now.Sub(lastEmit) >= 200*time.Millisecond || progress >= 100 || readErr == io.EOF {
+					lastEmit = now
+					runtime.EventsEmit(m.Ctx, "sftp:download:progress", map[string]interface{}{
+						"sessionId":  req.SessionID,
+						"remotePath": req.RemotePath,
+						"localPath":  req.LocalPath,
+						"progress":   progress,
+						"written":    written,
+						"total":      total,
+						"resumed":    true,
+					})
+				}
 			}
 		}
 		if readErr == io.EOF {
@@ -726,24 +788,11 @@ func (m *SFTPManager) GetTransferState(req GetTransferStateRequest) (GetTransfer
 	var localSize int64 = -1
 	var remoteSize int64 = -1
 
-	if req.Direction == "upload" {
-		localStat, err := os.Stat(req.LocalPath)
-		if err == nil {
-			localSize = localStat.Size()
-		}
-		remoteStat, err := client.Stat(req.RemotePath)
-		if err == nil {
-			remoteSize = remoteStat.Size()
-		}
-	} else {
-		remoteStat, err := client.Stat(req.RemotePath)
-		if err == nil {
-			remoteSize = remoteStat.Size()
-		}
-		localStat, err := os.Stat(req.LocalPath)
-		if err == nil {
-			localSize = localStat.Size()
-		}
+	if localStat, err := os.Stat(req.LocalPath); err == nil {
+		localSize = localStat.Size()
+	}
+	if remoteStat, err := client.Stat(req.RemotePath); err == nil {
+		remoteSize = remoteStat.Size()
 	}
 
 	canResume := false

@@ -4,6 +4,7 @@ import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 import { useUIStore, useConnectionStore, useTerminalTabStore } from '../stores/ui'
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
+import { WriteToSession, ResizeTerminal, CreateShell } from '../../wailsjs/go/ssh/SSHService'
 
 const xtermTheme = {
   background: '#11111b',
@@ -75,9 +76,7 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active }
     })
 
     term.onData((data: string) => {
-      import('../../wailsjs/go/ssh/SSHService').then(({ WriteToSession }) => {
-        WriteToSession({ sessionId, data })
-      })
+      WriteToSession({ sessionId, data })
     })
 
     const handleStdout = (d: string) => { term.write(d) }
@@ -90,9 +89,7 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active }
       try {
         fitAddon.fit()
         const { cols, rows } = term
-        import('../../wailsjs/go/ssh/SSHService').then(({ ResizeTerminal }) => {
-          ResizeTerminal({ sessionId, cols, rows })
-        })
+        ResizeTerminal({ sessionId, cols, rows })
       } catch {}
     })
 
@@ -113,9 +110,7 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active }
           fitRef.current?.fit()
           if (termRef.current) {
             const { cols, rows } = termRef.current
-            import('../../wailsjs/go/ssh/SSHService').then(({ ResizeTerminal }) => {
-              ResizeTerminal({ sessionId, cols, rows })
-            })
+            ResizeTerminal({ sessionId, cols, rows })
           }
         } catch {}
       })
@@ -142,11 +137,10 @@ const XTerminal: React.FC = () => {
 
   const handleNewShell = async () => {
     if (!activeServerId) return
-    const conn = connections.get(activeServerId)
+    const conn = connections[activeServerId]
     if (!conn) return
 
     try {
-      const { CreateShell } = await import('../../wailsjs/go/ssh/SSHService')
       const resp = await CreateShell({ baseSessionId: conn.sessionId })
       if (resp.success && resp.sessionId) {
         addTerminalTab({
@@ -164,7 +158,7 @@ const XTerminal: React.FC = () => {
   }
 
   const hasActiveConnection = activeTerminalTabId
-    ? terminalTabs.some(t => t.id === activeTerminalTabId && connections.has(t.serverId))
+    ? terminalTabs.some(t => t.id === activeTerminalTabId && t.serverId in connections)
     : false
 
   return (
@@ -214,7 +208,7 @@ const XTerminal: React.FC = () => {
           </div>
         ) : (
           terminalTabs.map((tab) => {
-            const conn = connections.get(tab.serverId)
+            const conn = connections[tab.serverId]
             if (!conn) return null
             const sid = tab.sessionId || conn.sessionId
             return (

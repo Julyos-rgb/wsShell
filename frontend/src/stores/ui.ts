@@ -58,8 +58,8 @@ export const useUIStore = create<UIState>((set) => ({
 
 interface ConnectionState {
   servers: ServerConfig[]
-  connections: Map<string, ConnectionInfo>
-  sftpSessions: Map<string, string>
+  connections: Record<string, ConnectionInfo>
+  sftpSessions: Record<string, string>
 
   setServers: (servers: ServerConfig[]) => void
   addConnection: (serverId: string, info: ConnectionInfo) => void
@@ -67,39 +67,35 @@ interface ConnectionState {
   addSftpSession: (serverId: string, sessionId: string) => void
   removeSftpSession: (serverId: string) => void
   getConnection: (serverId: string) => ConnectionInfo | undefined
+  hasConnection: (serverId: string) => boolean
 }
 
 export const useConnectionStore = create<ConnectionState>((set, get) => ({
   servers: [],
-  connections: new Map(),
-  sftpSessions: new Map(),
+  connections: {},
+  sftpSessions: {},
 
   setServers: (servers) => set({ servers }),
   addConnection: (serverId, info) =>
-    set((state) => {
-      const next = new Map(state.connections)
-      next.set(serverId, info)
-      return { connections: next }
-    }),
+    set((state) => ({
+      connections: { ...state.connections, [serverId]: info },
+    })),
   removeConnection: (serverId) =>
     set((state) => {
-      const next = new Map(state.connections)
-      next.delete(serverId)
-      return { connections: next }
+      const { [serverId]: _, ...rest } = state.connections
+      return { connections: rest }
     }),
   addSftpSession: (serverId, sessionId) =>
-    set((state) => {
-      const next = new Map(state.sftpSessions)
-      next.set(serverId, sessionId)
-      return { sftpSessions: next }
-    }),
+    set((state) => ({
+      sftpSessions: { ...state.sftpSessions, [serverId]: sessionId },
+    })),
   removeSftpSession: (serverId) =>
     set((state) => {
-      const next = new Map(state.sftpSessions)
-      next.delete(serverId)
-      return { sftpSessions: next }
+      const { [serverId]: _, ...rest } = state.sftpSessions
+      return { sftpSessions: rest }
     }),
-  getConnection: (serverId) => get().connections.get(serverId),
+  getConnection: (serverId) => get().connections[serverId],
+  hasConnection: (serverId) => serverId in get().connections,
 }))
 
 interface TransferState {

@@ -21,7 +21,7 @@ const VncViewer: React.FC = () => {
   const reconnectCountRef = useRef(0)
 
   const activeServer = servers.find((s) => s.id === activeServerId)
-  const connection = connections.get(activeServerId || '')
+  const connection = activeServerId ? connections[activeServerId] : undefined
   const isConnected = !!connection
 
   const cleanup = useCallback(() => {

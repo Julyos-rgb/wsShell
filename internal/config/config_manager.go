@@ -40,7 +40,10 @@ func NewConfigManager(repo store.ServerRepository) *ConfigManager {
 	return &ConfigManager{repo: repo}
 }
 
-func rowToConfig(row store.ServerRow) ServerConfig {
+func rowToDecryptedConfig(row store.ServerRow) ServerConfig {
+	password, _ := crypto.Decrypt(row.Password)
+	privateKey, _ := crypto.Decrypt(row.PrivateKey)
+	vncPassword, _ := crypto.Decrypt(row.VNCPassword)
 	return ServerConfig{
 		ID:          row.ID,
 		Name:        row.Name,
@@ -49,11 +52,11 @@ func rowToConfig(row store.ServerRow) ServerConfig {
 		Port:        row.Port,
 		Username:    row.Username,
 		AuthType:    row.AuthType,
-		Password:    row.Password,
-		PrivateKey:  row.PrivateKey,
+		Password:    password,
+		PrivateKey:  privateKey,
 		VNCEnabled:  row.VNCEnabled,
 		VNCPort:     row.VNCPort,
-		VNCPassword: row.VNCPassword,
+		VNCPassword: vncPassword,
 		VNCTunnel:   row.VNCTunnel,
 		Favorite:    row.Favorite,
 		Tags:        row.Tags,
@@ -96,11 +99,7 @@ func (c *ConfigManager) GetServers() (GetServersResponse, error) {
 
 	servers := make([]ServerConfig, len(rows))
 	for i, row := range rows {
-		s := rowToConfig(row)
-		s.Password, _ = crypto.Decrypt(s.Password)
-		s.PrivateKey, _ = crypto.Decrypt(s.PrivateKey)
-		s.VNCPassword, _ = crypto.Decrypt(s.VNCPassword)
-		servers[i] = s
+		servers[i] = rowToDecryptedConfig(row)
 	}
 
 	return GetServersResponse{Servers: servers}, nil
@@ -115,6 +114,25 @@ type AddServerResponse struct {
 	Error   string `json:"error,omitempty"`
 }
 
+func encryptSensitiveFields(s *ServerConfig) error {
+	encPass, err := crypto.Encrypt(s.Password)
+	if err != nil {
+		return fmt.Errorf("encrypt password failed: %w", err)
+	}
+	encKey, err := crypto.Encrypt(s.PrivateKey)
+	if err != nil {
+		return fmt.Errorf("encrypt private key failed: %w", err)
+	}
+	encVNCPass, err := crypto.Encrypt(s.VNCPassword)
+	if err != nil {
+		return fmt.Errorf("encrypt VNC password failed: %w", err)
+	}
+	s.Password = encPass
+	s.PrivateKey = encKey
+	s.VNCPassword = encVNCPass
+	return nil
+}
+
 func (c *ConfigManager) AddServer(req AddServerRequest) (AddServerResponse, error) {
 	s := req.Server
 	if s.ID == "" {
@@ -127,22 +145,9 @@ func (c *ConfigManager) AddServer(req AddServerRequest) (AddServerResponse, erro
 		s.VNCPort = 5900
 	}
 
-	encPass, err := crypto.Encrypt(s.Password)
-	if err != nil {
+	if err := encryptSensitiveFields(&s); err != nil {
 		return AddServerResponse{Success: false, Error: err.Error()}, nil
 	}
-	encKey, err := crypto.Encrypt(s.PrivateKey)
-	if err != nil {
-		return AddServerResponse{Success: false, Error: err.Error()}, nil
-	}
-	encVNCPass, err := crypto.Encrypt(s.VNCPassword)
-	if err != nil {
-		return AddServerResponse{Success: false, Error: err.Error()}, nil
-	}
-
-	s.Password = encPass
-	s.PrivateKey = encKey
-	s.VNCPassword = encVNCPass
 
 	if err := c.repo.Save(configToRow(s)); err != nil {
 		return AddServerResponse{Success: false, Error: err.Error()}, nil
@@ -162,22 +167,27 @@ type UpdateServerResponse struct {
 
 func (c *ConfigManager) UpdateServer(req UpdateServerRequest) (UpdateServerResponse, error) {
 	s := req.Server
-	encPass, err := crypto.Encrypt(s.Password)
-	if err != nil {
-		return UpdateServerResponse{Success: false, Error: err.Error()}, nil
-	}
-	encKey, err := crypto.Encrypt(s.PrivateKey)
-	if err != nil {
-		return UpdateServerResponse{Success: false, Error: err.Error()}, nil
-	}
-	encVNCPass, err := crypto.Encrypt(s.VNCPassword)
-	if err != nil {
-		return UpdateServerResponse{Success: false, Error: err.Error()}, nil
+
+	existing, err := c.repo.GetByID(s.ID)
+	if err != nil || existing == nil {
+		return UpdateServerResponse{Success: false, Error: "server not found"}, nil
 	}
 
-	s.Password = encPass
-	s.PrivateKey = encKey
-	s.VNCPassword = encVNCPass
+	if s.Password == "" {
+		s.Password = existing.Password
+	}
+	if s.PrivateKey == "" {
+		s.PrivateKey = existing.PrivateKey
+	}
+	if s.VNCPassword == "" {
+		s.VNCPassword = existing.VNCPassword
+	}
+
+	if s.Password != existing.Password || s.PrivateKey != existing.PrivateKey || s.VNCPassword != existing.VNCPassword {
+		if err := encryptSensitiveFields(&s); err != nil {
+			return UpdateServerResponse{Success: false, Error: err.Error()}, nil
+		}
+	}
 
 	if err := c.repo.Update(configToRow(s)); err != nil {
 		return UpdateServerResponse{Success: false, Error: err.Error()}, nil

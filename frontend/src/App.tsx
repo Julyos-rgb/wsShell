@@ -16,7 +16,7 @@ function App() {
   useEffect(() => {
     const newlyRegistered: string[] = []
 
-    connections.forEach((conn, _serverId) => {
+    Object.entries(connections).forEach(([_serverId, conn]) => {
       const sid = conn.sessionId
 
       if (registeredRef.current.has(sid)) return
@@ -38,16 +38,15 @@ function App() {
 
         const connStore = useConnectionStore.getState()
         let disconnectedServerId: string | null = null
-        connStore.connections.forEach((c, serverId) => {
+        Object.entries(connStore.connections).forEach(([sid2, c]) => {
           if (c.sessionId === data.sessionId) {
-            disconnectedServerId = serverId
+            disconnectedServerId = sid2
           }
         })
 
         if (!disconnectedServerId) return
 
-        const sftpSid = connStore.sftpSessions.get(disconnectedServerId)
-        if (sftpSid) {
+        if (connStore.sftpSessions[disconnectedServerId]) {
           useConnectionStore.getState().removeSftpSession(disconnectedServerId)
         }
         useConnectionStore.getState().removeConnection(disconnectedServerId)
@@ -78,7 +77,7 @@ function App() {
     const staleIds: string[] = []
     registeredRef.current.forEach((sid) => {
       let found = false
-      connections.forEach((c) => {
+      Object.values(connections).forEach((c) => {
         if (c.sessionId === sid) found = true
       })
       if (!found) staleIds.push(sid)

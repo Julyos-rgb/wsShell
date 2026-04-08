@@ -84,7 +84,7 @@ const Sidebar: React.FC = () => {
   }
 
   const connectToServer = async (server: ServerConfig) => {
-    if (connections.has(server.id)) {
+    if (server.id in connections) {
       setActiveServerId(server.id)
       return
     }
@@ -168,10 +168,10 @@ const Sidebar: React.FC = () => {
   }
 
   const disconnectServer = async (server: ServerConfig) => {
-    const conn = connections.get(server.id)
+    const conn = connections[server.id]
     if (conn) {
       try { await SSHDisconnect(conn.sessionId) } catch (e) { console.error(e) }
-      const sftpSessionId = useConnectionStore.getState().sftpSessions.get(server.id)
+      const sftpSessionId = useConnectionStore.getState().sftpSessions[server.id]
       if (sftpSessionId) {
         try { await SFTPDisconnect(sftpSessionId) } catch (e) { console.error(e) }
         removeSftpSession(server.id)
@@ -214,7 +214,7 @@ const Sidebar: React.FC = () => {
 
         <div className="flex-1 overflow-y-auto py-1">
           {servers.map((server) => {
-            const isConnected = connections.has(server.id)
+            const isConnected = server.id in connections
             const isActive = activeServerId === server.id
             const isConnecting = connecting === server.id
             const isHovered = hoveredServer === server.id

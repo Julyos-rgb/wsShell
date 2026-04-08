@@ -69,7 +69,7 @@ const FileManager: React.FC = () => {
 
     const getSftpSessionId = useCallback(() => {
         if (!activeServerId) return null
-        return sftpSessions.get(activeServerId) || null
+        return sftpSessions[activeServerId] || null
     }, [activeServerId, sftpSessions])
 
     const loadLocalFiles = useCallback(async (path?: string) => {
@@ -158,7 +158,7 @@ const FileManager: React.FC = () => {
         const file = remoteFiles.find((f) => f.path === selectedRemote)
         if (!file || file.type === 'directory') return
         const sessionId = getSftpSessionId()!
-        const localFilePath = localPath + '\\' + file.name
+        const localFilePath = localPath + '/' + file.name
 
         try {
             const state = await GetTransferState({
