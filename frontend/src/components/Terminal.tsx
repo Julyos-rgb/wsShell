@@ -1,20 +1,34 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useCallback } from 'react'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 import { useUIStore, useConnectionStore, useTerminalTabStore } from '../stores/ui'
-import { EventsOn } from '../../wailsjs/runtime/runtime'
+import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
 
 const XTerminal: React.FC = () => {
-  const termRef = useRef<HTMLDivElement>(null)
-  const xtermRef = useRef<Terminal | null>(null)
-  const fitAddonRef = useRef<FitAddon | null>(null)
   const { activeServerId } = useUIStore()
   const { connections } = useConnectionStore()
-  const { terminalTabs, activeTerminalTabId, setActiveTerminalTab, removeTerminalTab, addTerminalTab } = useTerminalTabStore()
+  const {
+    terminalTabs, activeTerminalTabId,
+    setActiveTerminalTab, removeTerminalTab, addTerminalTab,
+  } = useTerminalTabStore()
 
-  useEffect(() => {
-    if (!termRef.current) return
+  const termContainerRef = useRef<HTMLDivElement | null>(null) as React.MutableRefObject<HTMLDivElement | null>
+  const xtermRef = useRef<Terminal | null>(null)
+  const fitAddonRef = useRef<FitAddon | null>(null)
+  const resizeObserverRef = useRef<ResizeObserver | null>(null)
+  const dataDisposableRef = useRef<any>(null)
+  const activeSessionIdRef = useRef<string | null>(null)
+
+  const activeTab = activeTerminalTabId
+    ? terminalTabs.find(t => t.id === activeTerminalTabId)
+    : null
+  const activeConn = activeTab
+    ? connections.get(activeTab.serverId)
+    : (activeServerId ? connections.get(activeServerId) : null)
+
+  const initTerminal = useCallback(() => {
+    if (!termContainerRef.current) return
     if (xtermRef.current) return
 
     const term = new Terminal({
@@ -53,91 +67,109 @@ const XTerminal: React.FC = () => {
 
     const fitAddon = new FitAddon()
     term.loadAddon(fitAddon)
-    term.open(termRef.current)
-    fitAddon.fit()
+    term.open(termContainerRef.current)
+
+    requestAnimationFrame(() => {
+      try { fitAddon.fit() } catch {}
+    })
 
     xtermRef.current = term
     fitAddonRef.current = fitAddon
 
-    const resizeObserver = new ResizeObserver(() => {
+    const ro = new ResizeObserver(() => {
       try { fitAddon.fit() } catch {}
     })
-    resizeObserver.observe(termRef.current)
+    ro.observe(termContainerRef.current)
+    resizeObserverRef.current = ro
 
+    term.onData((data: string) => {
+      const sid = activeSessionIdRef.current
+      if (!sid) return
+      import('../../wailsjs/go/ssh/SSHService').then(({ WriteToSession }) => {
+        WriteToSession({ sessionId: sid, data })
+      })
+    })
+  }, [])
+
+  useEffect(() => {
     return () => {
-      resizeObserver.disconnect()
-      term.dispose()
-      xtermRef.current = null
-      fitAddonRef.current = null
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect()
+      }
+      if (xtermRef.current) {
+        xtermRef.current.dispose()
+        xtermRef.current = null
+        fitAddonRef.current = null
+      }
     }
   }, [])
 
   useEffect(() => {
-    if (!xtermRef.current || !activeTerminalTabId) return
+    if (!activeConn || !activeTab) {
+      if (dataDisposableRef.current) {
+        dataDisposableRef.current.dispose()
+        dataDisposableRef.current = null
+      }
+      activeSessionIdRef.current = null
+      return
+    }
 
-    const tab = terminalTabs.find(t => t.id === activeTerminalTabId)
-    if (!tab) return
+    const sessionId = activeTab.sessionId || activeConn.sessionId
 
-    const conn = connections.get(tab.serverId)
-    if (!conn) return
+    if (activeSessionIdRef.current === sessionId && xtermRef.current) return
 
-    const sessionId = tab.sessionId || conn.sessionId
+    activeSessionIdRef.current = sessionId
+
+    if (!xtermRef.current) return
+
     const term = xtermRef.current
 
-    const unlistenStdout = EventsOn(`ssh:${sessionId}:stdout`, (data: string) => {
-      term.write(data)
-    })
+    const handleStdout = (data: string) => { term.write(data) }
+    const handleStderr = (data: string) => { term.write(data) }
 
-    const unlistenStderr = EventsOn(`ssh:${sessionId}:stderr`, (data: string) => {
-      term.write(data)
-    })
+    EventsOn(`ssh:${sessionId}:stdout`, handleStdout)
+    EventsOn(`ssh:${sessionId}:stderr`, handleStderr)
 
-    term.onData((data: string) => {
-      import('../../wailsjs/go/ssh/SSHService').then(({ WriteToSession }) => {
-        WriteToSession({ sessionId, data })
-      })
+    requestAnimationFrame(() => {
+      try {
+        fitAddonRef.current?.fit()
+        const { cols, rows } = term
+        import('../../wailsjs/go/ssh/SSHService').then(({ ResizeTerminal }) => {
+          ResizeTerminal({ sessionId, cols, rows })
+        })
+      } catch {}
     })
-
-    if (fitAddonRef.current) {
-      const { cols, rows } = term
-      import('../../wailsjs/go/ssh/SSHService').then(({ ResizeTerminal }) => {
-        ResizeTerminal({ sessionId, cols, rows })
-      })
-    }
 
     term.focus()
 
     return () => {
-      unlistenStdout()
-      unlistenStderr()
+      EventsOff(`ssh:${sessionId}:stdout`)
+      EventsOff(`ssh:${sessionId}:stderr`)
     }
-  }, [activeTerminalTabId, terminalTabs, connections])
+  }, [activeTab, activeConn, terminalTabs, connections])
 
   useEffect(() => {
     const handleResize = () => {
-      if (xtermRef.current && fitAddonRef.current && activeTerminalTabId) {
-        setTimeout(() => {
-          try {
-            fitAddonRef.current?.fit()
-            const tab = terminalTabs.find(t => t.id === activeTerminalTabId)
-            if (tab) {
-              const conn = connections.get(tab.serverId)
-              if (conn) {
-                const sessionId = tab.sessionId || conn.sessionId
-                const { cols, rows } = xtermRef.current!
-                import('../../wailsjs/go/ssh/SSHService').then(({ ResizeTerminal }) => {
-                  ResizeTerminal({ sessionId, cols, rows })
-                })
-              }
+      if (!xtermRef.current || !fitAddonRef.current || !activeSessionIdRef.current) return
+      setTimeout(() => {
+        try {
+          fitAddonRef.current?.fit()
+          if (xtermRef.current) {
+            const { cols, rows } = xtermRef.current
+            const sid = activeSessionIdRef.current
+            if (sid) {
+              import('../../wailsjs/go/ssh/SSHService').then(({ ResizeTerminal }) => {
+                ResizeTerminal({ sessionId: sid, cols, rows })
+              })
             }
-          } catch {}
-        }, 100)
-      }
+          }
+        } catch {}
+      }, 100)
     }
 
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [activeTerminalTabId, terminalTabs, connections])
+  }, [])
 
   const handleNewShell = async () => {
     if (!activeServerId) return
@@ -161,8 +193,6 @@ const XTerminal: React.FC = () => {
       console.error('New shell failed:', e)
     }
   }
-
-  const activeConn = activeServerId ? connections.get(activeServerId) : null
 
   return (
     <div className="flex flex-col h-full">
@@ -210,7 +240,13 @@ const XTerminal: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div ref={termRef} className="h-full w-full p-1 bg-[#11111b]" />
+          <div
+            ref={(el) => {
+              termContainerRef.current = el
+              if (el) initTerminal()
+            }}
+            className="h-full w-full p-1 bg-[#11111b]"
+          />
         )}
       </div>
     </div>

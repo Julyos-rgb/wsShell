@@ -4,13 +4,13 @@ import VncViewer from './components/VncViewer'
 import FileManager from './components/FileManager'
 import StatusBar from './components/StatusBar'
 import AddServerDialog from './components/AddServerDialog'
-import { useUIStore, useConnectionStore } from './stores/ui'
+import { useUIStore, useConnectionStore, useTerminalTabStore } from './stores/ui'
 import { useEffect } from 'react'
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
 
 function App() {
   const { activeTab, activeServerId } = useUIStore()
-  const { connections } = useConnectionStore()
+  const { connections, removeConnection, removeSftpSession } = useConnectionStore()
 
   useEffect(() => {
     if (!activeServerId) return
@@ -30,10 +30,35 @@ function App() {
     }
 
     const handleDisconnected = (data: any) => {
-      if (data?.sessionId) {
-        useUIStore.getState().setStatusMessage(`连接已断开: ${data.error || '未知错误'}`)
-        useUIStore.getState().setLatency(0)
+      if (!data?.sessionId) return
+
+      const connStore = useConnectionStore.getState()
+      let disconnectedServerId: string | null = null
+      connStore.connections.forEach((c, serverId) => {
+        if (c.sessionId === data.sessionId) {
+          disconnectedServerId = serverId
+        }
+      })
+
+      if (!disconnectedServerId) return
+
+      const sftpSessionId = connStore.sftpSessions.get(disconnectedServerId)
+      if (sftpSessionId) {
+        removeSftpSession(disconnectedServerId)
       }
+      removeConnection(disconnectedServerId)
+
+      const tabStore = useTerminalTabStore.getState()
+      tabStore.terminalTabs
+        .filter(t => t.serverId === disconnectedServerId)
+        .forEach(t => tabStore.removeTerminalTab(t.id))
+
+      if (useUIStore.getState().activeServerId === disconnectedServerId) {
+        useUIStore.getState().setActiveServerId(null)
+      }
+
+      useUIStore.getState().setStatusMessage(`连接已断开: ${data.error || '未知错误'}`)
+      useUIStore.getState().setLatency(0)
     }
 
     EventsOn(`ssh:${sessionId}:keepalive`, handleKeepalive)
@@ -45,7 +70,7 @@ function App() {
       EventsOff(`ssh:${sessionId}:keepalive:failed`)
       EventsOff(`ssh:${sessionId}:disconnected`)
     }
-  }, [activeServerId, connections])
+  }, [activeServerId, connections, removeConnection, removeSftpSession])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
