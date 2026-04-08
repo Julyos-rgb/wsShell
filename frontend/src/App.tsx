@@ -5,72 +5,85 @@ import FileManager from './components/FileManager'
 import StatusBar from './components/StatusBar'
 import AddServerDialog from './components/AddServerDialog'
 import { useUIStore, useConnectionStore, useTerminalTabStore } from './stores/ui'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
 
 function App() {
-  const { activeTab, activeServerId } = useUIStore()
-  const { connections, removeConnection, removeSftpSession } = useConnectionStore()
+  const { activeTab } = useUIStore()
+  const { connections } = useConnectionStore()
+  const registeredRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
-    if (!activeServerId) return
-    const conn = connections.get(activeServerId)
-    if (!conn) return
+    const currentIds = new Set<string>()
 
-    const sessionId = conn.sessionId
+    connections.forEach((conn, _serverId) => {
+      const sid = conn.sessionId
+      currentIds.add(sid)
 
-    const handleKeepalive = (data: any) => {
-      if (data && typeof data.latency === 'number') {
-        useUIStore.getState().setLatency(data.latency)
-      }
-    }
+      if (registeredRef.current.has(sid)) return
+      registeredRef.current.add(sid)
 
-    const handleKeepaliveFailed = (_data: any) => {
-      useUIStore.getState().setLatency(-1)
-    }
-
-    const handleDisconnected = (data: any) => {
-      if (!data?.sessionId) return
-
-      const connStore = useConnectionStore.getState()
-      let disconnectedServerId: string | null = null
-      connStore.connections.forEach((c, serverId) => {
-        if (c.sessionId === data.sessionId) {
-          disconnectedServerId = serverId
+      const handleKeepalive = (data: any) => {
+        if (data && typeof data.latency === 'number') {
+          useUIStore.getState().setLatency(data.latency)
         }
-      })
-
-      if (!disconnectedServerId) return
-
-      const sftpSessionId = connStore.sftpSessions.get(disconnectedServerId)
-      if (sftpSessionId) {
-        removeSftpSession(disconnectedServerId)
-      }
-      removeConnection(disconnectedServerId)
-
-      const tabStore = useTerminalTabStore.getState()
-      tabStore.terminalTabs
-        .filter(t => t.serverId === disconnectedServerId)
-        .forEach(t => tabStore.removeTerminalTab(t.id))
-
-      if (useUIStore.getState().activeServerId === disconnectedServerId) {
-        useUIStore.getState().setActiveServerId(null)
       }
 
-      useUIStore.getState().setStatusMessage(`连接已断开: ${data.error || '未知错误'}`)
-      useUIStore.getState().setLatency(0)
-    }
+      const handleKeepaliveFailed = () => {
+        useUIStore.getState().setLatency(-1)
+      }
 
-    EventsOn(`ssh:${sessionId}:keepalive`, handleKeepalive)
-    EventsOn(`ssh:${sessionId}:keepalive:failed`, handleKeepaliveFailed)
-    EventsOn(`ssh:${sessionId}:disconnected`, handleDisconnected)
+      const handleDisconnected = (data: any) => {
+        if (!data?.sessionId) return
 
-    return () => {
-      EventsOff(`ssh:${sessionId}:keepalive`)
-      EventsOff(`ssh:${sessionId}:keepalive:failed`)
-      EventsOff(`ssh:${sessionId}:disconnected`)
-    }
-  }, [activeServerId, connections, removeConnection, removeSftpSession])
+        const connStore = useConnectionStore.getState()
+        let disconnectedServerId: string | null = null
+        connStore.connections.forEach((c, serverId) => {
+          if (c.sessionId === data.sessionId) {
+            disconnectedServerId = serverId
+          }
+        })
+
+        if (!disconnectedServerId) return
+
+        const sftpSid = connStore.sftpSessions.get(disconnectedServerId)
+        if (sftpSid) {
+          useConnectionStore.getState().removeSftpSession(disconnectedServerId)
+        }
+        useConnectionStore.getState().removeConnection(disconnectedServerId)
+
+        const tabStore = useTerminalTabStore.getState()
+        tabStore.terminalTabs
+          .filter(t => t.serverId === disconnectedServerId)
+          .forEach(t => tabStore.removeTerminalTab(t.id))
+
+        if (useUIStore.getState().activeServerId === disconnectedServerId) {
+          useUIStore.getState().setActiveServerId(null)
+        }
+
+        useUIStore.getState().setStatusMessage(`连接已断开: ${data.error || '未知错误'}`)
+        useUIStore.getState().setLatency(0)
+
+        EventsOff(`ssh:${data.sessionId}:keepalive`)
+        EventsOff(`ssh:${data.sessionId}:keepalive:failed`)
+        EventsOff(`ssh:${data.sessionId}:disconnected`)
+        registeredRef.current.delete(data.sessionId)
+      }
+
+      EventsOn(`ssh:${sid}:keepalive`, handleKeepalive)
+      EventsOn(`ssh:${sid}:keepalive:failed`, handleKeepaliveFailed)
+      EventsOn(`ssh:${sid}:disconnected`, handleDisconnected)
+    })
+
+    registeredRef.current.forEach((sid) => {
+      if (!currentIds.has(sid)) {
+        EventsOff(`ssh:${sid}:keepalive`)
+        EventsOff(`ssh:${sid}:keepalive:failed`)
+        EventsOff(`ssh:${sid}:disconnected`)
+        registeredRef.current.delete(sid)
+      }
+    })
+  }, [connections])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
