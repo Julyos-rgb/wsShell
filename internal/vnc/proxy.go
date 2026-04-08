@@ -1,12 +1,14 @@
 package vnc
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	sshcrypto "golang.org/x/crypto/ssh"
@@ -20,18 +22,21 @@ type Proxy struct {
 	mu       sync.RWMutex
 	servers  map[string]*proxyServer
 	sshProxy SSHClientProvider
+	Ctx      interface{}
 }
 
 type proxyServer struct {
-	server   *http.Server
-	listener net.Listener
-	port     int
-	target   string
-	password string
-	done     chan struct{}
-
+	server    *http.Server
+	listener  net.Listener
+	port      int
+	target    string
+	password  string
+	done      chan struct{}
 	tunnel    bool
 	sshClient *sshcrypto.Client
+
+	connectOnce sync.Once
+	connected   bool
 }
 
 var upgrader = websocket.Upgrader{
@@ -71,6 +76,11 @@ type StopProxyRequest struct {
 type StopProxyResponse struct {
 	Success bool   `json:"success"`
 	Error   string `json:"error,omitempty"`
+}
+
+type vncErrorMessage struct {
+	Type  string `json:"type"`
+	Error string `json:"error"`
 }
 
 func (p *Proxy) StartProxy(req StartProxyRequest) (StartProxyResponse, error) {
@@ -167,13 +177,21 @@ func (ps *proxyServer) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	defer wsConn.Close()
 
 	var conn net.Conn
+	dialTimeout := 5 * time.Second
+
 	if ps.tunnel && ps.sshClient != nil {
-		conn, err = ps.sshClient.Dial("tcp", ps.target)
+		conn, err = ps.dialSSHWithTimeout(dialTimeout)
 	} else {
-		conn, err = net.Dial("tcp", ps.target)
+		conn, err = net.DialTimeout("tcp", ps.target, dialTimeout)
 	}
 	if err != nil {
 		log.Printf("VNC dial error: %v", err)
+		errMsg := fmt.Sprintf("无法连接到 VNC 服务器 %s: %v", ps.target, err)
+		if ps.tunnel {
+			errMsg = fmt.Sprintf("无法通过 SSH 隧道连接到 VNC 服务器 %s，请确认远程服务器上已启动 VNC 服务 (端口 %d)", ps.target, ps.port)
+		}
+		sendVNCError(wsConn, errMsg)
+		time.Sleep(100 * time.Millisecond)
 		return
 	}
 	defer conn.Close()
@@ -223,4 +241,32 @@ func (ps *proxyServer) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	<-done
 	log.Printf("VNC connection closed: %s", ps.target)
+}
+
+func (ps *proxyServer) dialSSHWithTimeout(timeout time.Duration) (net.Conn, error) {
+	type result struct {
+		conn net.Conn
+		err  error
+	}
+	ch := make(chan result, 1)
+
+	go func() {
+		conn, err := ps.sshClient.Dial("tcp", ps.target)
+		ch <- result{conn, err}
+	}()
+
+	select {
+	case res := <-ch:
+		return res.conn, res.err
+	case <-time.After(timeout):
+		return nil, fmt.Errorf("connection timeout after %v", timeout)
+	}
+}
+
+func sendVNCError(wsConn *websocket.Conn, message string) {
+	errData, _ := json.Marshal(vncErrorMessage{
+		Type:  "error",
+		Error: message,
+	})
+	wsConn.WriteMessage(websocket.TextMessage, errData)
 }

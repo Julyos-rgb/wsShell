@@ -829,7 +829,7 @@ export namespace ssh {
 export namespace vnc {
 	
 	export class Proxy {
-	
+	    Ctx: any;
 	
 	    static createFrom(source: any = {}) {
 	        return new Proxy(source);
@@ -837,7 +837,7 @@ export namespace vnc {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	
+	        this.Ctx = source["Ctx"];
 	    }
 	}
 	export class StartProxyRequest {
