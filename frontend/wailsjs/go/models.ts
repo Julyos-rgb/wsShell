@@ -793,6 +793,12 @@ export namespace ssh {
 	    success: boolean;
 	    error?: string;
 	    sessionId?: string;
+	    needsHostKeyTrust?: boolean;
+	    hostKeyFingerprint?: string;
+	    hostKeyType?: string;
+	    hostKeyHost?: string;
+	    hostKeyMismatch?: boolean;
+	    expectedFingerprint?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new ConnectResponse(source);
@@ -803,6 +809,12 @@ export namespace ssh {
 	        this.success = source["success"];
 	        this.error = source["error"];
 	        this.sessionId = source["sessionId"];
+	        this.needsHostKeyTrust = source["needsHostKeyTrust"];
+	        this.hostKeyFingerprint = source["hostKeyFingerprint"];
+	        this.hostKeyType = source["hostKeyType"];
+	        this.hostKeyHost = source["hostKeyHost"];
+	        this.hostKeyMismatch = source["hostKeyMismatch"];
+	        this.expectedFingerprint = source["expectedFingerprint"];
 	    }
 	}
 	export class CreateShellRequest {
@@ -911,6 +923,36 @@ export namespace ssh {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.Ctx = source["Ctx"];
+	    }
+	}
+	export class TrustHostKeyRequest {
+	    host: string;
+	    keyType: string;
+	    fingerprint: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TrustHostKeyRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.host = source["host"];
+	        this.keyType = source["keyType"];
+	        this.fingerprint = source["fingerprint"];
+	    }
+	}
+	export class TrustHostKeyResponse {
+	    success: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new TrustHostKeyResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.error = source["error"];
 	    }
 	}
 	export class WriteRequest {

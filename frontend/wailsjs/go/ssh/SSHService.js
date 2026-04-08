@@ -30,6 +30,10 @@ export function ResizeTerminal(arg1) {
   return window['go']['ssh']['SSHService']['ResizeTerminal'](arg1);
 }
 
+export function TrustHostKey(arg1) {
+  return window['go']['ssh']['SSHService']['TrustHostKey'](arg1);
+}
+
 export function WriteToSession(arg1) {
   return window['go']['ssh']['SSHService']['WriteToSession'](arg1);
 }

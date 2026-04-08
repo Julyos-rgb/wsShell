@@ -16,4 +16,6 @@ export function IsConnected(arg1:string):Promise<ssh.IsConnectedResponse>;
 
 export function ResizeTerminal(arg1:ssh.ResizeRequest):Promise<ssh.ResizeResponse>;
 
+export function TrustHostKey(arg1:ssh.TrustHostKeyRequest):Promise<ssh.TrustHostKeyResponse>;
+
 export function WriteToSession(arg1:ssh.WriteRequest):Promise<ssh.WriteResponse>;

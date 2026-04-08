@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -48,9 +49,15 @@ type ConnectRequest struct {
 }
 
 type ConnectResponse struct {
-	Success   bool   `json:"success"`
-	Error     string `json:"error,omitempty"`
-	SessionID string `json:"sessionId,omitempty"`
+	Success             bool   `json:"success"`
+	Error               string `json:"error,omitempty"`
+	SessionID           string `json:"sessionId,omitempty"`
+	NeedsHostKeyTrust   bool   `json:"needsHostKeyTrust,omitempty"`
+	HostKeyFingerprint  string `json:"hostKeyFingerprint,omitempty"`
+	HostKeyType         string `json:"hostKeyType,omitempty"`
+	HostKeyHost         string `json:"hostKeyHost,omitempty"`
+	HostKeyMismatch     bool   `json:"hostKeyMismatch,omitempty"`
+	ExpectedFingerprint string `json:"expectedFingerprint,omitempty"`
 }
 
 type CreateSessionRequest struct {
@@ -89,6 +96,20 @@ func (s *SSHService) Connect(req ConnectRequest) (ConnectResponse, error) {
 	addr := fmt.Sprintf("%s:%d", req.Host, req.Port)
 	client, err := sshcrypto.Dial("tcp", addr, config)
 	if err != nil {
+		var hkErr *hostKeyError
+		if errors.As(err, &hkErr) {
+			resp := ConnectResponse{Success: false, Error: hkErr.Error()}
+			resp.HostKeyHost = hkErr.Host
+			resp.HostKeyType = hkErr.KeyType
+			resp.HostKeyFingerprint = hkErr.Fingerprint
+			if hkErr.IsMismatch {
+				resp.HostKeyMismatch = true
+				resp.ExpectedFingerprint = hkErr.ExpectedFingerprint
+			} else {
+				resp.NeedsHostKeyTrust = true
+			}
+			return resp, nil
+		}
 		return ConnectResponse{Success: false, Error: err.Error()}, nil
 	}
 
@@ -502,6 +523,22 @@ func (s *SSHService) GetLatency(req GetLatencyRequest) (GetLatencyResponse, erro
 	return GetLatencyResponse{Success: true, Latency: latency}, nil
 }
 
+type hostKeyError struct {
+	Host                string
+	KeyType             string
+	Fingerprint         string
+	IsMismatch          bool
+	ExpectedFingerprint string
+}
+
+func (e *hostKeyError) Error() string {
+	if e.IsMismatch {
+		return fmt.Sprintf("HOST KEY MISMATCH for %s!\nExpected: %s\nGot: %s\nPossible MITM attack!",
+			e.Host, e.ExpectedFingerprint, e.Fingerprint)
+	}
+	return fmt.Sprintf("new host key for %s (%s): %s", e.Host, e.KeyType, e.Fingerprint)
+}
+
 func (s *SSHService) createHostKeyCallback(host string) sshcrypto.HostKeyCallback {
 	return func(hostname string, remote net.Addr, key sshcrypto.PublicKey) error {
 		keyType := key.Type()
@@ -524,31 +561,49 @@ func (s *SSHService) createHostKeyCallback(host string) sshcrypto.HostKeyCallbac
 				if known.Fingerprint == fingerprint {
 					return nil
 				}
-				errMsg := fmt.Sprintf("HOST KEY MISMATCH for %s!\nExpected: %s\nGot: %s\nPossible MITM attack!",
+				log.Printf("SECURITY: HOST KEY MISMATCH for %s! Expected: %s Got: %s",
 					hostname, known.Fingerprint, fingerprint)
-				log.Printf("SECURITY: %s", errMsg)
-				return fmt.Errorf("%s", errMsg)
+				return &hostKeyError{
+					Host:                hostname,
+					KeyType:             keyType,
+					Fingerprint:         fingerprint,
+					IsMismatch:          true,
+					ExpectedFingerprint: known.Fingerprint,
+				}
 			}
 		}
 
-		if err := repo.Save(store.HostKeyRow{
+		return &hostKeyError{
 			Host:        hostname,
 			KeyType:     keyType,
 			Fingerprint: fingerprint,
-		}); err != nil {
-			log.Printf("Host key save error: %v", err)
 		}
-
-		log.Printf("New host key saved for %s (%s): %s", hostname, keyType, fingerprint)
-
-		if s.Ctx != nil {
-			runtime.EventsEmit(s.Ctx, "ssh:hostkey:new", map[string]interface{}{
-				"host":        hostname,
-				"keyType":     keyType,
-				"fingerprint": fingerprint,
-			})
-		}
-
-		return nil
 	}
+}
+
+type TrustHostKeyRequest struct {
+	Host        string `json:"host"`
+	KeyType     string `json:"keyType"`
+	Fingerprint string `json:"fingerprint"`
+}
+
+type TrustHostKeyResponse struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
+func (s *SSHService) TrustHostKey(req TrustHostKeyRequest) (TrustHostKeyResponse, error) {
+	repo, err := store.NewHostKeyRepository()
+	if err != nil {
+		return TrustHostKeyResponse{Success: false, Error: err.Error()}, nil
+	}
+	if err := repo.Save(store.HostKeyRow{
+		Host:        req.Host,
+		KeyType:     req.KeyType,
+		Fingerprint: req.Fingerprint,
+	}); err != nil {
+		return TrustHostKeyResponse{Success: false, Error: err.Error()}, nil
+	}
+	log.Printf("Host key trusted and saved for %s (%s): %s", req.Host, req.KeyType, req.Fingerprint)
+	return TrustHostKeyResponse{Success: true}, nil
 }
