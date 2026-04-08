@@ -178,16 +178,10 @@ const XTerminal: React.FC = () => {
               }`}
               onClick={() => setActiveTerminalTab(tab.id)}
             >
-              <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
               <span className="truncate max-w-[120px]">{tab.label}</span>
               <button
                 className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-danger transition-all ml-1"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  removeTerminalTab(tab.id)
-                }}
+                onClick={(e) => { e.stopPropagation(); removeTerminalTab(tab.id) }}
               >
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -209,13 +203,10 @@ const XTerminal: React.FC = () => {
 
       <div className="flex-1 relative">
         {!activeConn ? (
-          <div className="flex items-center justify-center h-full text-text-dim animate-fade-in">
+          <div className="flex items-center justify-center h-full text-text-dim">
             <div className="text-center">
-              <svg className="w-16 h-16 mx-auto mb-4 text-text-dim/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <div className="text-sm">选择一个服务器以开始终端会话</div>
-              <div className="text-xs text-text-dim/50 mt-2">点击左侧服务器列表中的服务器进行连接</div>
+              <div className="text-sm">点击左侧服务器开始连接</div>
+              <div className="text-xs text-text-dim/50 mt-1">Ctrl+1 终端 / Ctrl+2 VNC / Ctrl+3 文件 / Ctrl+B 侧边栏</div>
             </div>
           </div>
         ) : (

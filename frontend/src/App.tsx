@@ -76,68 +76,35 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen w-screen bg-surface-400 text-text overflow-hidden">
-      <div className="glass-panel px-4 py-1 flex items-center justify-between flex-shrink-0 rounded-none border-x-0 border-t-0">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-danger/80 hover:bg-danger transition-colors cursor-pointer" />
-            <div className="w-3 h-3 rounded-full bg-accent-yellow/80 hover:bg-accent-yellow transition-colors cursor-pointer" />
-            <div className="w-3 h-3 rounded-full bg-accent-green/80 hover:bg-accent-green transition-colors cursor-pointer" />
-          </div>
-          <span className="text-xs text-text-dim font-medium ml-2 tracking-wider uppercase">wsShell</span>
+      <div className="h-9 bg-surface-400 flex items-center px-3 flex-shrink-0 border-b border-border/40">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full bg-danger/80" />
+          <div className="w-3 h-3 rounded-full bg-accent-yellow/80" />
+          <div className="w-3 h-3 rounded-full bg-accent-green/80" />
         </div>
-        <div className="flex items-center gap-3 text-xs text-text-dim">
-          <span className="flex items-center gap-1.5">
-            <span className={`status-dot ${activeServerId ? 'status-dot-connected' : 'status-dot-disconnected'}`} />
-            {activeServerId ? '已连接' : '未连接'}
-          </span>
+        <span className="text-xs text-text-dim ml-3 font-medium">wsShell</span>
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'terminal' ? 'text-primary-300 bg-primary-500/10' : 'text-text-dim hover:text-text-muted'}`}
+            onClick={() => useUIStore.getState().setActiveTab('terminal')}
+          >终端</button>
+          <button
+            className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'vnc' ? 'text-primary-300 bg-primary-500/10' : 'text-text-dim hover:text-text-muted'}`}
+            onClick={() => useUIStore.getState().setActiveTab('vnc')}
+          >VNC</button>
+          <button
+            className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'file' ? 'text-primary-300 bg-primary-500/10' : 'text-text-dim hover:text-text-muted'}`}
+            onClick={() => useUIStore.getState().setActiveTab('file')}
+          >文件</button>
         </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="bg-surface-400 flex border-b border-border flex-shrink-0">
-            <button
-              className={`tab-btn ${activeTab === 'terminal' ? 'tab-btn-active' : 'text-text-dim hover:text-text-muted'}`}
-              onClick={() => useUIStore.getState().setActiveTab('terminal')}
-            >
-              <span className="flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                终端
-              </span>
-            </button>
-            <button
-              className={`tab-btn ${activeTab === 'vnc' ? 'tab-btn-active' : 'text-text-dim hover:text-text-muted'}`}
-              onClick={() => useUIStore.getState().setActiveTab('vnc')}
-            >
-              <span className="flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-                VNC
-              </span>
-            </button>
-            <button
-              className={`tab-btn ${activeTab === 'file' ? 'tab-btn-active' : 'text-text-dim hover:text-text-muted'}`}
-              onClick={() => useUIStore.getState().setActiveTab('file')}
-            >
-              <span className="flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-                文件
-              </span>
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-hidden">
-            {activeTab === 'terminal' && <Terminal />}
-            {activeTab === 'vnc' && <VncViewer />}
-            {activeTab === 'file' && <FileManager />}
-          </div>
+        <div className="flex-1 overflow-hidden">
+          {activeTab === 'terminal' && <Terminal />}
+          {activeTab === 'vnc' && <VncViewer />}
+          {activeTab === 'file' && <FileManager />}
         </div>
       </div>
 
