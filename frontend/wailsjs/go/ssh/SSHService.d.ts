@@ -8,6 +8,8 @@ export function CreateShell(arg1:ssh.CreateShellRequest):Promise<ssh.CreateShell
 
 export function Disconnect(arg1:string):Promise<void>;
 
+export function ExecuteCommand(arg1:ssh.ExecCommandRequest):Promise<ssh.ExecCommandResponse>;
+
 export function GetClient(arg1:string):Promise<ssh.Client>;
 
 export function GetHostKeyCallback(arg1:string):Promise<ssh.HostKeyCallback>;

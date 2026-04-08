@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=wsShell
+Comment=Lightweight SSH Client
+Exec=wsShell
+Icon=wsShell
+Terminal=false
+Categories=Network;RemoteAccess;Utility;
+StartupNotify=true

@@ -31,6 +31,9 @@ func main() {
 			app.sftpManager,
 			app.configManager,
 			app.vncProxy,
+			app.monitorSvc,
+			app.networkSvc,
+			app.autoComplete,
 		},
 	})
 

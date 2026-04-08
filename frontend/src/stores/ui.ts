@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { ServerConfig, ConnectionInfo, TransferTask, TerminalTab } from '../types'
 
 interface UIState {
-  activeTab: 'terminal' | 'vnc' | 'file'
+  activeTab: 'terminal' | 'vnc' | 'file' | 'monitor' | 'network' | 'docker' | 'tools'
   activeServerId: string | null
   sidebarCollapsed: boolean
   theme: 'dark' | 'light'
@@ -12,7 +12,7 @@ interface UIState {
   latency: number
   transferRate: string
 
-  setActiveTab: (tab: 'terminal' | 'vnc' | 'file') => void
+  setActiveTab: (tab: 'terminal' | 'vnc' | 'file' | 'monitor' | 'network' | 'docker' | 'tools') => void
   setActiveServerId: (serverId: string | null) => void
   toggleSidebar: () => void
   setTheme: (theme: 'dark' | 'light') => void

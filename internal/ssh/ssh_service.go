@@ -376,6 +376,60 @@ func (s *SSHService) GetHostKeyCallback(host string) sshcrypto.HostKeyCallback {
 	return s.createHostKeyCallback(host)
 }
 
+type ExecCommandRequest struct {
+	SessionID string `json:"sessionId"`
+	Command   string `json:"command"`
+	Timeout   int    `json:"timeout,omitempty"`
+}
+
+type ExecCommandResponse struct {
+	Success bool   `json:"success"`
+	Output  string `json:"output,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+func (s *SSHService) ExecuteCommand(req ExecCommandRequest) (ExecCommandResponse, error) {
+	client := s.resolveClient(req.SessionID)
+	if client == nil {
+		return ExecCommandResponse{Success: false, Error: "SSH connection not found"}, nil
+	}
+
+	timeout := 10
+	if req.Timeout > 0 {
+		timeout = req.Timeout
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+	defer cancel()
+
+	session, err := client.NewSession()
+	if err != nil {
+		return ExecCommandResponse{Success: false, Error: err.Error()}, nil
+	}
+	defer session.Close()
+
+	type result struct {
+		output []byte
+		err    error
+	}
+	done := make(chan result, 1)
+
+	go func() {
+		out, e := session.CombinedOutput(req.Command)
+		done <- result{output: out, err: e}
+	}()
+
+	select {
+	case r := <-done:
+		if r.err != nil {
+			return ExecCommandResponse{Success: false, Output: string(r.output), Error: r.err.Error()}, nil
+		}
+		return ExecCommandResponse{Success: true, Output: string(r.output)}, nil
+	case <-ctx.Done():
+		return ExecCommandResponse{Success: false, Error: "command timed out"}, nil
+	}
+}
+
 type CreateShellRequest struct {
 	BaseSessionID string `json:"baseSessionId"`
 }

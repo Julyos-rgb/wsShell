@@ -203,7 +203,7 @@ const XTerminal: React.FC = () => {
           <div className="flex items-center justify-center h-full text-text-dim">
             <div className="text-center">
               <div className="text-sm">点击左侧服务器开始连接</div>
-              <div className="text-xs text-text-dim/50 mt-1">Ctrl+1 终端 / Ctrl+2 VNC / Ctrl+3 文件 / Ctrl+B 侧边栏</div>
+              <div className="text-xs text-text-dim/50 mt-1">Ctrl+1~7 切换标签 / Ctrl+B 侧边栏 / Ctrl+Shift+P 命令面板</div>
             </div>
           </div>
         ) : (

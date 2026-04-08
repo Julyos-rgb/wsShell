@@ -14,6 +14,10 @@ export function Disconnect(arg1) {
   return window['go']['ssh']['SSHService']['Disconnect'](arg1);
 }
 
+export function ExecuteCommand(arg1) {
+  return window['go']['ssh']['SSHService']['ExecuteCommand'](arg1);
+}
+
 export function GetClient(arg1) {
   return window['go']['ssh']['SSHService']['GetClient'](arg1);
 }

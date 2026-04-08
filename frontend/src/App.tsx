@@ -4,14 +4,32 @@ import VncViewer from './components/VncViewer'
 import FileManager from './components/FileManager'
 import StatusBar from './components/StatusBar'
 import AddServerDialog from './components/AddServerDialog'
+import MonitorPanel from './components/MonitorPanel'
+import DockerManager from './components/DockerManager'
+import NetworkMonitor from './components/NetworkMonitor'
+import NetworkTools from './components/NetworkTools'
+import CommandPalette, { usePaletteStore } from './components/CommandPalette'
 import { useUIStore, useConnectionStore, useTerminalTabStore } from './stores/ui'
 import { useEffect, useRef } from 'react'
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
+
+type TabId = 'terminal' | 'vnc' | 'file' | 'monitor' | 'network' | 'docker' | 'tools'
+
+const tabs: { id: TabId; label: string; shortcut: string }[] = [
+  { id: 'terminal', label: '终端', shortcut: '1' },
+  { id: 'vnc', label: 'VNC', shortcut: '2' },
+  { id: 'file', label: '文件', shortcut: '3' },
+  { id: 'monitor', label: '监控', shortcut: '4' },
+  { id: 'network', label: '网络', shortcut: '5' },
+  { id: 'docker', label: 'Docker', shortcut: '6' },
+  { id: 'tools', label: '工具', shortcut: '7' },
+]
 
 function App() {
   const { activeTab } = useUIStore()
   const { connections } = useConnectionStore()
   const registeredRef = useRef<Set<string>>(new Set())
+  const togglePalette = usePaletteStore((s) => s.toggle)
 
   useEffect(() => {
     const newlyRegistered: string[] = []
@@ -101,30 +119,30 @@ function App() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'P') {
+        e.preventDefault()
+        togglePalette()
+        return
+      }
       if (e.ctrlKey || e.metaKey) {
-        switch (e.key) {
-          case '1':
-            e.preventDefault()
-            useUIStore.getState().setActiveTab('terminal')
-            break
-          case '2':
-            e.preventDefault()
-            useUIStore.getState().setActiveTab('vnc')
-            break
-          case '3':
-            e.preventDefault()
-            useUIStore.getState().setActiveTab('file')
-            break
-          case 'b':
-            e.preventDefault()
-            useUIStore.getState().toggleSidebar()
-            break
+        const tabMap: Record<string, TabId> = {
+          '1': 'terminal', '2': 'vnc', '3': 'file',
+          '4': 'monitor', '5': 'network', '6': 'docker', '7': 'tools',
+        }
+        if (tabMap[e.key]) {
+          e.preventDefault()
+          useUIStore.getState().setActiveTab(tabMap[e.key])
+          return
+        }
+        if (e.key === 'b') {
+          e.preventDefault()
+          useUIStore.getState().toggleSidebar()
         }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [togglePalette])
 
   return (
     <div className="flex flex-col h-screen w-screen bg-surface-400 text-text overflow-hidden">
@@ -135,19 +153,14 @@ function App() {
           <div className="w-3 h-3 rounded-full bg-accent-green/80" />
         </div>
         <span className="text-xs text-text-dim ml-3 font-medium">wsShell</span>
-        <div className="ml-auto flex items-center gap-1">
-          <button
-            className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'terminal' ? 'text-primary-300 bg-primary-500/10' : 'text-text-dim hover:text-text-muted'}`}
-            onClick={() => useUIStore.getState().setActiveTab('terminal')}
-          >终端</button>
-          <button
-            className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'vnc' ? 'text-primary-300 bg-primary-500/10' : 'text-text-dim hover:text-text-muted'}`}
-            onClick={() => useUIStore.getState().setActiveTab('vnc')}
-          >VNC</button>
-          <button
-            className={`px-3 py-1 text-xs rounded transition-colors ${activeTab === 'file' ? 'text-primary-300 bg-primary-500/10' : 'text-text-dim hover:text-text-muted'}`}
-            onClick={() => useUIStore.getState().setActiveTab('file')}
-          >文件</button>
+        <div className="ml-auto flex items-center gap-0.5">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              className={`px-2.5 py-1 text-xs rounded transition-colors ${activeTab === tab.id ? 'text-primary-300 bg-primary-500/10' : 'text-text-dim hover:text-text-muted'}`}
+              onClick={() => useUIStore.getState().setActiveTab(tab.id)}
+            >{tab.label}</button>
+          ))}
         </div>
       </div>
 
@@ -157,11 +170,22 @@ function App() {
           {activeTab === 'terminal' && <Terminal />}
           {activeTab === 'vnc' && <VncViewer />}
           {activeTab === 'file' && <FileManager />}
+          {activeTab === 'monitor' && <MonitorPanel />}
+          {activeTab === 'network' && <NetworkMonitor />}
+          {activeTab === 'docker' && <DockerManager />}
+          {activeTab === 'tools' && (
+            <div className="flex flex-col h-full">
+              <div className="flex-1 overflow-hidden">
+                <NetworkTools />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       <StatusBar />
       <AddServerDialog />
+      <CommandPalette />
     </div>
   )
 }

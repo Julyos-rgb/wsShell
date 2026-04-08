@@ -17,13 +17,13 @@
     "version": "0.1.0"
   },
   "windows": {
-    "icon": "frontend/src/assets/icon.ico",
+    "icon": "build/windows/icon.ico",
     "console": true
   },
   "darwin": {
-    "icon": "frontend/src/assets/icon.icns"
+    "icon": "build/darwin/icon.icns"
   },
   "linux": {
-    "icon": "frontend/src/assets/icon.png"
+    "icon": "build/linux/icon.png"
   }
 }
