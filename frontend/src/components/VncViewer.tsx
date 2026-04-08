@@ -5,6 +5,7 @@ import {
   StartProxy,
   StopProxy,
 } from '../../wailsjs/go/vnc/Proxy'
+import { vnc } from '../../wailsjs/go/models'
 
 const VncViewer: React.FC = () => {
   const { connections, servers } = useConnectionStore()
@@ -39,7 +40,7 @@ const VncViewer: React.FC = () => {
     }
     if (proxyUrl && activeServer) {
       const sessionId = `${activeServer.host}:${activeServer.vncPort || 5900}`
-      StopProxy({ sessionId } as any).catch(() => {})
+      StopProxy({ sessionId } as vnc.StopProxyRequest).catch(() => {})
     }
     setStatus('idle')
     setProxyUrl('')
@@ -62,7 +63,7 @@ const VncViewer: React.FC = () => {
         password: vncPassword || activeServer.vncPassword || '',
         tunnel: activeServer.vncTunnel || false,
         sshSessionId,
-      } as any)
+      } as vnc.StartProxyRequest)
 
       if (!resp.success) {
         setStatus('error')

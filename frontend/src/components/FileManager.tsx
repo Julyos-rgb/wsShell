@@ -11,6 +11,7 @@ import {
     ResumeDownload,
 } from '../../wailsjs/go/sftp/SFTPManager'
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
+import { sftp } from '../../wailsjs/go/models'
 import { FileEntry } from '../types'
 import { useConnectionStore, useUIStore, useTransferStore } from '../stores/ui'
 
@@ -147,7 +148,7 @@ const FileManager: React.FC = () => {
                 localPath: file.path,
                 remotePath: remoteFilePath,
                 direction: 'upload',
-            } as any)
+            } as sftp.GetTransferStateRequest)
             if (state.canResume) {
                 const confirmed = window.confirm(
                     `检测到已存在部分文件 (${formatSizeLocal(state.remoteSize || 0)} / ${formatSizeLocal(state.localSize || 0)})，是否断点续传？`
@@ -158,7 +159,7 @@ const FileManager: React.FC = () => {
                         localPath: file.path,
                         remotePath: remoteFilePath,
                         offset: -1,
-                    } as any)
+                    } as sftp.ResumeUploadRequest)
                     loadRemoteFiles()
                     return
                 }
@@ -183,7 +184,7 @@ const FileManager: React.FC = () => {
                 sessionId,
                 localPath: file.path,
                 remotePath: remoteFilePath,
-            } as any)
+            } as sftp.UploadRequest)
             updateTransfer(taskId, { status: 'completed', progress: 100 })
             loadRemoteFiles()
         } catch (e) {
@@ -205,7 +206,7 @@ const FileManager: React.FC = () => {
                 remotePath: file.path,
                 localPath: localFilePath,
                 direction: 'download',
-            } as any)
+            } as sftp.GetTransferStateRequest)
             if (state.canResume) {
                 const confirmed = window.confirm(
                     `检测到已存在部分文件 (${formatSizeLocal(state.localSize || 0)} / ${formatSizeLocal(state.remoteSize || 0)})，是否断点续传？`
@@ -216,7 +217,7 @@ const FileManager: React.FC = () => {
                         remotePath: file.path,
                         localPath: localFilePath,
                         offset: -1,
-                    } as any)
+                    } as sftp.ResumeDownloadRequest)
                     loadLocalFiles()
                     return
                 }
@@ -241,7 +242,7 @@ const FileManager: React.FC = () => {
                 sessionId,
                 remotePath: file.path,
                 localPath: localFilePath,
-            } as any)
+            } as sftp.DownloadRequest)
             updateTransfer(taskId, { status: 'completed', progress: 100 })
             loadLocalFiles()
         } catch (e) {
@@ -267,7 +268,7 @@ const FileManager: React.FC = () => {
             await Mkdir({
                 sessionId: getSftpSessionId()!,
                 path: remotePath === '/' ? '/' + name : remotePath + '/' + name,
-            } as any)
+            } as sftp.MkdirRequest)
             loadRemoteFiles()
         } catch (e) {
             console.error('mkdir error:', e)
@@ -303,7 +304,7 @@ const FileManager: React.FC = () => {
                     localPath,
                     remotePath: remoteFilePath,
                     direction: 'upload',
-                } as any)
+                } as sftp.GetTransferStateRequest)
                 if (state.canResume) {
                     const confirmed = window.confirm(
                         `检测到已存在部分文件，是否断点续传 ${file.name}？`
@@ -314,7 +315,7 @@ const FileManager: React.FC = () => {
                             localPath,
                             remotePath: remoteFilePath,
                             offset: -1,
-                        } as any)
+                        } as sftp.ResumeUploadRequest)
                         continue
                     }
                 }
@@ -338,7 +339,7 @@ const FileManager: React.FC = () => {
                     sessionId,
                     localPath,
                     remotePath: remoteFilePath,
-                } as any)
+                } as sftp.UploadRequest)
                 updateTransfer(taskId, { status: 'completed', progress: 100 })
             } catch (err: any) {
                 console.error('drag upload error:', err)
