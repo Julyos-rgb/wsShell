@@ -232,6 +232,18 @@ export namespace config {
 
 export namespace sftp {
 	
+	export class ConnectFromSSHRequest {
+	    sshSessionId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConnectFromSSHRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sshSessionId = source["sshSessionId"];
+	    }
+	}
 	export class ConnectRequest {
 	    host: string;
 	    port: number;
@@ -438,6 +450,32 @@ export namespace sftp {
 		    return a;
 		}
 	}
+	export class LocalDeleteRequest {
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalDeleteRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	    }
+	}
+	export class LocalDeleteResponse {
+	    success: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalDeleteResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.error = source["error"];
+	    }
+	}
 	export class LocalListFilesRequest {
 	    path: string;
 	
@@ -485,6 +523,60 @@ export namespace sftp {
 		    }
 		    return a;
 		}
+	}
+	export class LocalMkdirRequest {
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalMkdirRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	    }
+	}
+	export class LocalMkdirResponse {
+	    success: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalMkdirResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.error = source["error"];
+	    }
+	}
+	export class LocalRenameRequest {
+	    oldPath: string;
+	    newPath: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalRenameRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.oldPath = source["oldPath"];
+	        this.newPath = source["newPath"];
+	    }
+	}
+	export class LocalRenameResponse {
+	    success: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LocalRenameResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.error = source["error"];
+	    }
 	}
 	export class MkdirRequest {
 	    sessionId: string;
@@ -739,6 +831,32 @@ export namespace ssh {
 	        this.success = source["success"];
 	        this.error = source["error"];
 	        this.sessionId = source["sessionId"];
+	    }
+	}
+	export class GetLatencyRequest {
+	    sessionId: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GetLatencyRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	    }
+	}
+	export class GetLatencyResponse {
+	    success: boolean;
+	    latency: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new GetLatencyResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.latency = source["latency"];
 	    }
 	}
 	export class IsConnectedResponse {

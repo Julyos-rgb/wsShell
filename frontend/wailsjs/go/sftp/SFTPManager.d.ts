@@ -4,6 +4,8 @@ import {sftp} from '../models';
 
 export function Connect(arg1:sftp.ConnectRequest):Promise<sftp.ConnectResponse>;
 
+export function ConnectFromSSH(arg1:sftp.ConnectFromSSHRequest):Promise<sftp.ConnectResponse>;
+
 export function DeleteFile(arg1:sftp.DeleteFileRequest):Promise<sftp.DeleteFileResponse>;
 
 export function Disconnect(arg1:string):Promise<void>;
@@ -16,6 +18,12 @@ export function ListFiles(arg1:sftp.ListFilesRequest):Promise<sftp.ListFilesResp
 
 export function ListLocalFiles(arg1:sftp.LocalListFilesRequest):Promise<sftp.LocalListFilesResponse>;
 
+export function LocalDelete(arg1:sftp.LocalDeleteRequest):Promise<sftp.LocalDeleteResponse>;
+
+export function LocalMkdir(arg1:sftp.LocalMkdirRequest):Promise<sftp.LocalMkdirResponse>;
+
+export function LocalRename(arg1:sftp.LocalRenameRequest):Promise<sftp.LocalRenameResponse>;
+
 export function Mkdir(arg1:sftp.MkdirRequest):Promise<sftp.MkdirResponse>;
 
 export function Rename(arg1:sftp.RenameRequest):Promise<sftp.RenameResponse>;
@@ -23,5 +31,7 @@ export function Rename(arg1:sftp.RenameRequest):Promise<sftp.RenameResponse>;
 export function ResumeDownload(arg1:sftp.ResumeDownloadRequest):Promise<sftp.ResumeDownloadResponse>;
 
 export function ResumeUpload(arg1:sftp.ResumeUploadRequest):Promise<sftp.ResumeUploadResponse>;
+
+export function SetSSHProvider(arg1:sftp.SSHClientProvider):Promise<void>;
 
 export function UploadFile(arg1:sftp.UploadRequest):Promise<sftp.UploadResponse>;

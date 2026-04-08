@@ -89,52 +89,63 @@ const AddServerDialog: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={handleClose}>
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in" onClick={handleClose}>
       <div
-        className="bg-tertiary rounded-lg shadow-xl w-[520px] max-h-[90vh] overflow-y-auto border border-secondary"
+        className="glass-panel rounded-2xl shadow-glass w-[520px] max-h-[90vh] overflow-y-auto animate-slide-up"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between p-4 border-b border-secondary">
-          <h2 className="text-lg font-medium text-white">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
+          <h2 className="text-base font-semibold text-text flex items-center gap-2">
+            <svg className="w-5 h-5 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
             {editingServer ? '编辑服务器' : '添加服务器'}
           </h2>
-          <button className="text-gray-400 hover:text-white text-xl" onClick={handleClose}>
-            ✕
+          <button className="p-1 rounded-lg text-text-dim hover:text-text hover:bg-surface-50/50 transition-all" onClick={handleClose}>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
 
-        <div className="flex border-b border-secondary">
+        <div className="flex border-b border-border/40">
           <button
-            className={`flex-1 py-2 text-sm ${tab === 'basic' ? 'text-primary border-b-2 border-primary' : 'text-gray-400'}`}
+            className={`flex-1 py-2.5 text-sm font-medium transition-all relative ${
+              tab === 'basic' ? 'text-primary-300' : 'text-text-dim hover:text-text-muted'
+            }`}
             onClick={() => setTab('basic')}
           >
             基本设置
+            {tab === 'basic' && <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-primary-400 rounded-full" />}
           </button>
           <button
-            className={`flex-1 py-2 text-sm ${tab === 'vnc' ? 'text-primary border-b-2 border-primary' : 'text-gray-400'}`}
+            className={`flex-1 py-2.5 text-sm font-medium transition-all relative ${
+              tab === 'vnc' ? 'text-primary-300' : 'text-text-dim hover:text-text-muted'
+            }`}
             onClick={() => setTab('vnc')}
           >
             VNC 设置
+            {tab === 'vnc' && <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-primary-400 rounded-full" />}
           </button>
         </div>
 
-        <div className="p-4 space-y-4">
+        <div className="p-5 space-y-4">
           {tab === 'basic' && (
             <>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">服务器名称 *</label>
+                  <label className="block text-xs text-text-subtext mb-1.5 font-medium">服务器名称 *</label>
                   <input
-                    className="w-full bg-surface border border-secondary rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-primary"
+                    className="input-field"
                     value={form.name}
                     onChange={(e) => updateField('name', e.target.value)}
                     placeholder="如: 生产服务器-1"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">分组</label>
+                  <label className="block text-xs text-text-subtext mb-1.5 font-medium">分组</label>
                   <input
-                    className="w-full bg-surface border border-secondary rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-primary"
+                    className="input-field"
                     value={form.group}
                     onChange={(e) => updateField('group', e.target.value)}
                     placeholder="如: 生产环境"
@@ -142,21 +153,21 @@ const AddServerDialog: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <label className="block text-sm text-gray-400 mb-1">主机地址 *</label>
+                  <label className="block text-xs text-text-subtext mb-1.5 font-medium">主机地址 *</label>
                   <input
-                    className="w-full bg-surface border border-secondary rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-primary"
+                    className="input-field font-mono"
                     value={form.host}
                     onChange={(e) => updateField('host', e.target.value)}
                     placeholder="192.168.1.100"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">端口</label>
+                  <label className="block text-xs text-text-subtext mb-1.5 font-medium">端口</label>
                   <input
                     type="number"
-                    className="w-full bg-surface border border-secondary rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-primary"
+                    className="input-field font-mono"
                     value={form.port}
                     onChange={(e) => updateField('port', parseInt(e.target.value) || 22)}
                   />
@@ -164,9 +175,9 @@ const AddServerDialog: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">用户名</label>
+                <label className="block text-xs text-text-subtext mb-1.5 font-medium">用户名</label>
                 <input
-                  className="w-full bg-surface border border-secondary rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-primary"
+                  className="input-field"
                   value={form.username}
                   onChange={(e) => updateField('username', e.target.value)}
                   placeholder="root"
@@ -174,37 +185,51 @@ const AddServerDialog: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-1">认证方式</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 text-sm text-white cursor-pointer">
+                <label className="block text-xs text-text-subtext mb-1.5 font-medium">认证方式</label>
+                <div className="flex gap-3">
+                  <label className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all border ${
+                    form.authType === 'password'
+                      ? 'border-primary-400 bg-primary-500/10 text-primary-300'
+                      : 'border-border text-text-muted hover:border-border-hover'
+                  }`}>
                     <input
                       type="radio"
                       name="authType"
                       checked={form.authType === 'password'}
                       onChange={() => updateField('authType', 'password')}
-                      className="accent-primary"
+                      className="sr-only"
                     />
-                    密码
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span className="text-sm">密码</span>
                   </label>
-                  <label className="flex items-center gap-2 text-sm text-white cursor-pointer">
+                  <label className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all border ${
+                    form.authType === 'key'
+                      ? 'border-primary-400 bg-primary-500/10 text-primary-300'
+                      : 'border-border text-text-muted hover:border-border-hover'
+                  }`}>
                     <input
                       type="radio"
                       name="authType"
                       checked={form.authType === 'key'}
                       onChange={() => updateField('authType', 'key')}
-                      className="accent-primary"
+                      className="sr-only"
                     />
-                    密钥
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    </svg>
+                    <span className="text-sm">密钥</span>
                   </label>
                 </div>
               </div>
 
               {form.authType === 'password' ? (
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">密码</label>
+                  <label className="block text-xs text-text-subtext mb-1.5 font-medium">密码</label>
                   <input
                     type="password"
-                    className="w-full bg-surface border border-secondary rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-primary"
+                    className="input-field"
                     value={form.password}
                     onChange={(e) => updateField('password', e.target.value)}
                     placeholder="SSH 密码"
@@ -212,22 +237,31 @@ const AddServerDialog: React.FC = () => {
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm text-gray-400 mb-1">私钥</label>
+                  <label className="block text-xs text-text-subtext mb-1.5 font-medium">私钥</label>
                   <textarea
-                    className="w-full bg-surface border border-secondary rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-primary h-32 font-mono"
+                    className="input-field h-28 font-mono text-xs resize-none"
                     value={form.privateKey}
                     onChange={(e) => updateField('privateKey', e.target.value)}
-                    placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"
+                    placeholder={"-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----"}
                   />
                 </div>
               )}
 
-              <label className="flex items-center gap-2 text-sm text-white cursor-pointer">
+              <label className="flex items-center gap-2.5 text-sm text-text-muted cursor-pointer hover:text-text transition-colors">
+                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
+                  form.favorite ? 'border-accent-yellow bg-accent-yellow/20' : 'border-border hover:border-border-hover'
+                }`}>
+                  {form.favorite && (
+                    <svg className="w-3 h-3 text-accent-yellow" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </svg>
+                  )}
+                </div>
                 <input
                   type="checkbox"
                   checked={form.favorite}
                   onChange={(e) => updateField('favorite', e.target.checked)}
-                  className="accent-primary"
+                  className="sr-only"
                 />
                 添加到收藏
               </label>
@@ -236,44 +270,62 @@ const AddServerDialog: React.FC = () => {
 
           {tab === 'vnc' && (
             <>
-              <label className="flex items-center gap-2 text-sm text-white cursor-pointer">
+              <label className="flex items-center gap-2.5 text-sm text-text-muted cursor-pointer hover:text-text transition-colors">
+                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                  form.vncEnabled ? 'border-primary-400 bg-primary-500/20' : 'border-border hover:border-border-hover'
+                }`}>
+                  {form.vncEnabled && (
+                    <svg className="w-3.5 h-3.5 text-primary-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
                 <input
                   type="checkbox"
                   checked={form.vncEnabled}
                   onChange={(e) => updateField('vncEnabled', e.target.checked)}
-                  className="accent-primary"
+                  className="sr-only"
                 />
                 启用 VNC
               </label>
 
               {form.vncEnabled && (
                 <>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-sm text-gray-400 mb-1">VNC 端口</label>
+                      <label className="block text-xs text-text-subtext mb-1.5 font-medium">VNC 端口</label>
                       <input
                         type="number"
-                        className="w-full bg-surface border border-secondary rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-primary"
+                        className="input-field font-mono"
                         value={form.vncPort}
                         onChange={(e) => updateField('vncPort', parseInt(e.target.value) || 5900)}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm text-gray-400 mb-1">VNC 密码</label>
+                      <label className="block text-xs text-text-subtext mb-1.5 font-medium">VNC 密码</label>
                       <input
                         type="password"
-                        className="w-full bg-surface border border-secondary rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-primary"
+                        className="input-field"
                         value={form.vncPassword}
                         onChange={(e) => updateField('vncPassword', e.target.value)}
                       />
                     </div>
                   </div>
-                  <label className="flex items-center gap-2 text-sm text-white cursor-pointer">
+                  <label className="flex items-center gap-2.5 text-sm text-text-muted cursor-pointer hover:text-text transition-colors">
+                    <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                      form.vncTunnel ? 'border-primary-400 bg-primary-500/20' : 'border-border hover:border-border-hover'
+                    }`}>
+                      {form.vncTunnel && (
+                        <svg className="w-3.5 h-3.5 text-primary-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
                     <input
                       type="checkbox"
                       checked={form.vncTunnel}
                       onChange={(e) => updateField('vncTunnel', e.target.checked)}
-                      className="accent-primary"
+                      className="sr-only"
                     />
                     通过 SSH 隧道连接
                   </label>
@@ -283,21 +335,21 @@ const AddServerDialog: React.FC = () => {
           )}
 
           {error && (
-            <div className="text-red-400 text-sm bg-red-900/20 border border-red-800 rounded px-3 py-2">
+            <div className="flex items-center gap-2 text-sm text-danger bg-danger-dark/30 border border-danger/30 rounded-lg px-3 py-2.5">
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
               {error}
             </div>
           )}
         </div>
 
-        <div className="flex justify-end gap-3 p-4 border-t border-secondary">
-          <button
-            className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
-            onClick={handleClose}
-          >
+        <div className="flex justify-end gap-2 px-5 py-4 border-t border-border/40">
+          <button className="btn-ghost" onClick={handleClose}>
             取消
           </button>
           <button
-            className="px-4 py-2 text-sm bg-primary text-background rounded hover:brightness-110 transition-all disabled:opacity-50"
+            className="btn-primary"
             onClick={handleSave}
             disabled={saving}
           >

@@ -1,254 +1,229 @@
-import React, { useRef, useEffect, useState } from 'react'
-import { Terminal as XTermTerminal } from 'xterm'
+import React, { useEffect, useRef } from 'react'
+import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
-import { WebLinksAddon } from '@xterm/addon-web-links'
 import 'xterm/css/xterm.css'
-import { useTerminalTabStore } from '../stores/ui'
-import { WriteToSession, ResizeTerminal, CreateShell } from '../../wailsjs/go/ssh/SSHService'
-import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
-import { TerminalTab } from '../types'
+import { useUIStore, useConnectionStore, useTerminalTabStore } from '../stores/ui'
+import { EventsOn } from '../../wailsjs/runtime/runtime'
 
-const terminalTheme = {
-  background: '#0a0a0a',
-  foreground: '#d4d4d4',
-  cursor: '#64ffda',
-  cursorAccent: '#0a0a0a',
-  selectionBackground: '#264f78',
-  black: '#000000',
-  red: '#cd3131',
-  green: '#0dbc79',
-  yellow: '#e5e510',
-  blue: '#2472c8',
-  magenta: '#bc3fbc',
-  cyan: '#11a8cd',
-  white: '#e5e5e5',
-  brightBlack: '#666666',
-  brightRed: '#f14c4c',
-  brightGreen: '#23d18b',
-  brightYellow: '#f5f543',
-  brightBlue: '#3b8eea',
-  brightMagenta: '#d670d6',
-  brightCyan: '#29b8db',
-  brightWhite: '#ffffff',
-}
-
-interface TerminalInstanceProps {
-  tab: TerminalTab
-  isActive: boolean
-}
-
-const TerminalInstance: React.FC<TerminalInstanceProps> = ({ tab, isActive }) => {
-  const terminalRef = useRef<HTMLDivElement>(null)
-  const xtermRef = useRef<XTermTerminal | null>(null)
-  const fitAddonRef = useRef<FitAddon>(new FitAddon())
-  const [initialized, setInitialized] = useState(false)
+const XTerminal: React.FC = () => {
+  const termRef = useRef<HTMLDivElement>(null)
+  const xtermRef = useRef<Terminal | null>(null)
+  const fitAddonRef = useRef<FitAddon | null>(null)
+  const { activeServerId } = useUIStore()
+  const { connections } = useConnectionStore()
+  const { terminalTabs, activeTerminalTabId, setActiveTerminalTab, removeTerminalTab, addTerminalTab } = useTerminalTabStore()
 
   useEffect(() => {
-    if (!terminalRef.current || initialized) return
+    if (!termRef.current) return
+    if (xtermRef.current) return
 
-    const term = new XTermTerminal({
-      theme: terminalTheme,
-      fontFamily: 'Consolas, Monaco, "Courier New", monospace',
-      fontSize: 14,
-      lineHeight: 1.2,
+    const term = new Terminal({
       cursorBlink: true,
-      cursorStyle: 'block',
-      scrollback: 10000,
+      cursorStyle: 'bar',
+      fontSize: 13,
+      fontFamily: "'JetBrains Mono', 'Cascadia Code', Consolas, Monaco, 'Courier New', monospace",
+      theme: {
+        background: '#11111b',
+        foreground: '#cdd6f4',
+        cursor: '#818cf8',
+        cursorAccent: '#11111b',
+        selectionBackground: '#45475a',
+        selectionForeground: '#cdd6f4',
+        black: '#45475a',
+        red: '#f38ba8',
+        green: '#a6e3a1',
+        yellow: '#f9e2af',
+        blue: '#89b4fa',
+        magenta: '#f5c2e7',
+        cyan: '#94e2d5',
+        white: '#bac2de',
+        brightBlack: '#585b70',
+        brightRed: '#f38ba8',
+        brightGreen: '#a6e3a1',
+        brightYellow: '#f9e2af',
+        brightBlue: '#89b4fa',
+        brightMagenta: '#f5c2e7',
+        brightCyan: '#94e2d5',
+        brightWhite: '#a6adc8',
+      },
       allowProposedApi: true,
+      scrollback: 10000,
+      drawBoldTextInBrightColors: true,
     })
 
-    const fitAddon = fitAddonRef.current
+    const fitAddon = new FitAddon()
     term.loadAddon(fitAddon)
-    try {
-      term.loadAddon(new WebLinksAddon())
-    } catch (e) {
-      // web-links addon optional
-    }
-
-    term.open(terminalRef.current)
-
-    if (tab.connected && tab.sessionId) {
-      term.writeln(`\x1b[1;32mConnected to ${tab.serverName}\x1b[0m`)
-      term.writeln(`\x1b[90mSession: ${tab.sessionId}\x1b[0m`)
-      term.writeln('')
-    } else {
-      term.writeln('\x1b[1;36mwsShell Terminal\x1b[0m')
-      term.writeln('\x1b[90mConnecting...\x1b[0m')
-      term.writeln('')
-    }
-
-    term.onData(async (data) => {
-      if (!tab.sessionId) {
-        term.write(data)
-        return
-      }
-      try {
-        await WriteToSession({ sessionId: tab.sessionId, data })
-      } catch (e) {
-        console.error('write error:', e)
-      }
-    })
+    term.open(termRef.current)
+    fitAddon.fit()
 
     xtermRef.current = term
-    setInitialized(true)
-
-    return () => {
-      term.dispose()
-    }
-  }, [tab.id])
-
-  useEffect(() => {
-    const term = xtermRef.current
-    if (!term || !tab.sessionId) return
-
-    const stdoutHandler = (data: string) => {
-      term.write(data)
-    }
-    const stderrHandler = (data: string) => {
-      term.write(data)
-    }
-
-    EventsOn(`ssh:${tab.sessionId}:stdout`, stdoutHandler)
-    EventsOn(`ssh:${tab.sessionId}:stderr`, stderrHandler)
-
-    return () => {
-      EventsOff(`ssh:${tab.sessionId}:stdout`)
-      EventsOff(`ssh:${tab.sessionId}:stderr`)
-    }
-  }, [tab.sessionId, initialized])
-
-  useEffect(() => {
-    if (!isActive || !initialized) return
-
-    const handleResize = () => {
-      const term = xtermRef.current
-      if (!term) return
-      fitAddonRef.current.fit()
-      if (tab.sessionId && term.rows && term.cols) {
-        ResizeTerminal({ sessionId: tab.sessionId, rows: term.rows, cols: term.cols } as any).catch(() => {})
-      }
-    }
-
-    setTimeout(handleResize, 100)
+    fitAddonRef.current = fitAddon
 
     const resizeObserver = new ResizeObserver(() => {
-      setTimeout(handleResize, 100)
+      try { fitAddon.fit() } catch {}
     })
-    if (terminalRef.current) {
-      resizeObserver.observe(terminalRef.current)
-    }
+    resizeObserver.observe(termRef.current)
 
     return () => {
       resizeObserver.disconnect()
+      term.dispose()
+      xtermRef.current = null
+      fitAddonRef.current = null
     }
-  }, [isActive, initialized, tab.sessionId])
+  }, [])
 
-  return (
-    <div
-      ref={terminalRef}
-      className="w-full h-full"
-      style={{ display: isActive ? 'block' : 'none' }}
-    />
-  )
-}
+  useEffect(() => {
+    if (!xtermRef.current || !activeTerminalTabId) return
 
-const Terminal: React.FC = () => {
-  const {
-    terminalTabs,
-    activeTerminalTabId,
-    addTerminalTab,
-    removeTerminalTab,
-    setActiveTerminalTab,
-  } = useTerminalTabStore()
+    const tab = terminalTabs.find(t => t.id === activeTerminalTabId)
+    if (!tab) return
 
-  const handleAddTab = async () => {
-    if (terminalTabs.length === 0) {
-      return
+    const conn = connections.get(tab.serverId)
+    if (!conn) return
+
+    const sessionId = tab.sessionId || conn.sessionId
+    const term = xtermRef.current
+
+    const unlistenStdout = EventsOn(`ssh:${sessionId}:stdout`, (data: string) => {
+      term.write(data)
+    })
+
+    const unlistenStderr = EventsOn(`ssh:${sessionId}:stderr`, (data: string) => {
+      term.write(data)
+    })
+
+    term.onData((data: string) => {
+      import('../../wailsjs/go/ssh/SSHService').then(({ WriteToSession }) => {
+        WriteToSession({ sessionId, data })
+      })
+    })
+
+    if (fitAddonRef.current) {
+      const { cols, rows } = term
+      import('../../wailsjs/go/ssh/SSHService').then(({ ResizeTerminal }) => {
+        ResizeTerminal({ sessionId, cols, rows })
+      })
     }
-    const activeTab = terminalTabs.find((t) => t.id === activeTerminalTabId)
-    if (!activeTab || !activeTab.sessionId) return
+
+    term.focus()
+
+    return () => {
+      unlistenStdout()
+      unlistenStderr()
+    }
+  }, [activeTerminalTabId, terminalTabs, connections])
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (xtermRef.current && fitAddonRef.current && activeTerminalTabId) {
+        setTimeout(() => {
+          try {
+            fitAddonRef.current?.fit()
+            const tab = terminalTabs.find(t => t.id === activeTerminalTabId)
+            if (tab) {
+              const conn = connections.get(tab.serverId)
+              if (conn) {
+                const sessionId = tab.sessionId || conn.sessionId
+                const { cols, rows } = xtermRef.current!
+                import('../../wailsjs/go/ssh/SSHService').then(({ ResizeTerminal }) => {
+                  ResizeTerminal({ sessionId, cols, rows })
+                })
+              }
+            }
+          } catch {}
+        }, 100)
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [activeTerminalTabId, terminalTabs, connections])
+
+  const handleNewShell = async () => {
+    if (!activeServerId) return
+    const conn = connections.get(activeServerId)
+    if (!conn) return
 
     try {
-      const result = await CreateShell({ baseSessionId: activeTab.sessionId })
-      if (result.success && result.sessionId) {
-        const newTab: TerminalTab = {
-          id: `${activeTab.serverId}-${Date.now()}`,
-          serverId: activeTab.serverId,
-          sessionId: result.sessionId,
-          label: `${activeTab.serverName} #${terminalTabs.filter(t => t.serverId === activeTab.serverId).length + 1}`,
-          serverName: activeTab.serverName,
+      const { CreateShell } = await import('../../wailsjs/go/ssh/SSHService')
+      const resp = await CreateShell({ baseSessionId: conn.sessionId })
+      if (resp.success && resp.sessionId) {
+        addTerminalTab({
+          id: `${activeServerId}-${resp.sessionId}`,
+          serverId: activeServerId,
+          sessionId: resp.sessionId,
+          label: `Shell ${terminalTabs.filter(t => t.serverId === activeServerId).length + 1}`,
+          serverName: conn.serverName,
           connected: true,
-        }
-        addTerminalTab(newTab)
+        })
       }
     } catch (e) {
-      console.error('CreateShell error:', e)
+      console.error('New shell failed:', e)
     }
   }
 
-  const handleCloseTab = (tabId: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    removeTerminalTab(tabId)
-  }
-
-  const handleTabClick = (tabId: string) => {
-    setActiveTerminalTab(tabId)
-  }
-
-  if (terminalTabs.length === 0) {
-    return (
-      <div className="w-full h-full bg-[#0a0a0a] flex items-center justify-center">
-        <div className="text-gray-500 text-center">
-          <div className="text-4xl mb-4">⌨</div>
-          <div>选择左侧服务器开始连接</div>
-        </div>
-      </div>
-    )
-  }
+  const activeConn = activeServerId ? connections.get(activeServerId) : null
 
   return (
-    <div className="w-full h-full bg-[#0a0a0a] flex flex-col">
-      <div className="flex bg-[#1a1a1a] border-b border-[#333] h-9 shrink-0">
-        {terminalTabs.map((tab) => (
-          <div
-            key={tab.id}
-            onClick={() => handleTabClick(tab.id)}
-            className={`
-              flex items-center gap-2 px-3 h-full cursor-pointer
-              border-r border-[#333] min-w-[120px] max-w-[200px]
-              ${tab.id === activeTerminalTabId ? 'bg-[#0a0a0a] text-white' : 'bg-[#1a1a1a] text-gray-400 hover:bg-[#252525]'}
-            `}
-          >
-            <span className="truncate flex-1 text-sm">{tab.label}</span>
-            <button
-              onClick={(e) => handleCloseTab(tab.id, e)}
-              className="text-gray-500 hover:text-white px-1 rounded hover:bg-[#333] text-xs"
+    <div className="flex flex-col h-full">
+      {terminalTabs.length > 1 && (
+        <div className="flex items-center bg-surface-400 border-b border-border/40 px-1 flex-shrink-0">
+          {terminalTabs.map((tab) => (
+            <div
+              key={tab.id}
+              className={`group flex items-center gap-1.5 px-3 py-1.5 text-xs cursor-pointer border-b-2 transition-all ${
+                tab.id === activeTerminalTabId
+                  ? 'text-primary-300 border-primary-400 bg-surface-300/50'
+                  : 'text-text-dim border-transparent hover:text-text-muted hover:bg-surface-50/30'
+              }`}
+              onClick={() => setActiveTerminalTab(tab.id)}
             >
-              ✕
-            </button>
-          </div>
-        ))}
-        <button
-          onClick={handleAddTab}
-          className="px-3 h-full text-gray-500 hover:text-white hover:bg-[#252525] text-lg"
-          title="新建标签"
-        >
-          +
-        </button>
-      </div>
-      <div className="flex-1 relative">
-        {terminalTabs.map((tab) => (
-          <div
-            key={tab.id}
-            className="absolute inset-0"
-            style={{ display: tab.id === activeTerminalTabId ? 'block' : 'none' }}
+              <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span className="truncate max-w-[120px]">{tab.label}</span>
+              <button
+                className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-danger transition-all ml-1"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  removeTerminalTab(tab.id)
+                }}
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          ))}
+          <button
+            className="px-2 py-1 text-text-dim hover:text-primary-300 transition-colors"
+            onClick={handleNewShell}
+            title="新建 Shell"
           >
-            <TerminalInstance tab={tab} isActive={tab.id === activeTerminalTabId} />
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      <div className="flex-1 relative">
+        {!activeConn ? (
+          <div className="flex items-center justify-center h-full text-text-dim animate-fade-in">
+            <div className="text-center">
+              <svg className="w-16 h-16 mx-auto mb-4 text-text-dim/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <div className="text-sm">选择一个服务器以开始终端会话</div>
+              <div className="text-xs text-text-dim/50 mt-2">点击左侧服务器列表中的服务器进行连接</div>
+            </div>
           </div>
-        ))}
+        ) : (
+          <div ref={termRef} className="h-full w-full p-1 bg-[#11111b]" />
+        )}
       </div>
     </div>
   )
 }
 
-export default Terminal
+export default XTerminal

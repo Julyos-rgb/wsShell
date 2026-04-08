@@ -15,18 +15,29 @@ import (
 	sshcrypto "golang.org/x/crypto/ssh"
 )
 
+type SSHClientProvider interface {
+	GetClient(sessionID string) *sshcrypto.Client
+}
+
 type SFTPManager struct {
-	mu         sync.RWMutex
-	clients    map[string]*sftp.Client
-	sshClients map[string]*sshcrypto.Client
-	Ctx        context.Context
+	mu           sync.RWMutex
+	clients      map[string]*sftp.Client
+	sshClients   map[string]*sshcrypto.Client
+	ownsClient   map[string]bool
+	sshProvider  SSHClientProvider
+	Ctx          context.Context
 }
 
 func NewSFTPManager() *SFTPManager {
 	return &SFTPManager{
 		clients:    make(map[string]*sftp.Client),
 		sshClients: make(map[string]*sshcrypto.Client),
+		ownsClient: make(map[string]bool),
 	}
+}
+
+func (m *SFTPManager) SetSSHProvider(provider SSHClientProvider) {
+	m.sshProvider = provider
 }
 
 type FileInfo struct {
@@ -91,12 +102,46 @@ func (m *SFTPManager) Connect(req ConnectRequest) (ConnectResponse, error) {
 	m.mu.Lock()
 	if existing, ok := m.clients[sessionID]; ok {
 		existing.Close()
-		if sc, ok := m.sshClients[sessionID]; ok {
+		if sc, ok := m.sshClients[sessionID]; ok && m.ownsClient[sessionID] {
 			sc.Close()
 		}
 	}
 	m.clients[sessionID] = sftpClient
 	m.sshClients[sessionID] = sshClient
+	m.ownsClient[sessionID] = true
+	m.mu.Unlock()
+
+	return ConnectResponse{Success: true, SessionID: sessionID}, nil
+}
+
+type ConnectFromSSHRequest struct {
+	SSHSessionID string `json:"sshSessionId"`
+}
+
+func (m *SFTPManager) ConnectFromSSH(req ConnectFromSSHRequest) (ConnectResponse, error) {
+	if m.sshProvider == nil {
+		return ConnectResponse{Success: false, Error: "SSH provider not configured"}, nil
+	}
+
+	sshClient := m.sshProvider.GetClient(req.SSHSessionID)
+	if sshClient == nil {
+		return ConnectResponse{Success: false, Error: "SSH connection not found for session: " + req.SSHSessionID}, nil
+	}
+
+	sftpClient, err := sftp.NewClient(sshClient)
+	if err != nil {
+		return ConnectResponse{Success: false, Error: fmt.Sprintf("create SFTP client failed: %v", err)}, nil
+	}
+
+	sessionID := req.SSHSessionID
+
+	m.mu.Lock()
+	if existing, ok := m.clients[sessionID]; ok {
+		existing.Close()
+	}
+	m.clients[sessionID] = sftpClient
+	m.sshClients[sessionID] = sshClient
+	m.ownsClient[sessionID] = false
 	m.mu.Unlock()
 
 	return ConnectResponse{Success: true, SessionID: sessionID}, nil
@@ -110,10 +155,11 @@ func (m *SFTPManager) Disconnect(sessionID string) error {
 		client.Close()
 		delete(m.clients, sessionID)
 	}
-	if sc, ok := m.sshClients[sessionID]; ok {
+	if sc, ok := m.sshClients[sessionID]; ok && m.ownsClient[sessionID] {
 		sc.Close()
 		delete(m.sshClients, sessionID)
 	}
+	delete(m.ownsClient, sessionID)
 	return nil
 }
 
@@ -713,4 +759,56 @@ func (m *SFTPManager) GetTransferState(req GetTransferStateRequest) (GetTransfer
 		RemoteSize: remoteSize,
 		CanResume:  canResume,
 	}, nil
+}
+
+type LocalDeleteRequest struct {
+	Path string `json:"path"`
+}
+
+type LocalDeleteResponse struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
+func (m *SFTPManager) LocalDelete(req LocalDeleteRequest) (LocalDeleteResponse, error) {
+	err := os.RemoveAll(req.Path)
+	if err != nil {
+		return LocalDeleteResponse{Success: false, Error: err.Error()}, nil
+	}
+	return LocalDeleteResponse{Success: true}, nil
+}
+
+type LocalMkdirRequest struct {
+	Path string `json:"path"`
+}
+
+type LocalMkdirResponse struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
+func (m *SFTPManager) LocalMkdir(req LocalMkdirRequest) (LocalMkdirResponse, error) {
+	err := os.MkdirAll(req.Path, 0755)
+	if err != nil {
+		return LocalMkdirResponse{Success: false, Error: err.Error()}, nil
+	}
+	return LocalMkdirResponse{Success: true}, nil
+}
+
+type LocalRenameRequest struct {
+	OldPath string `json:"oldPath"`
+	NewPath string `json:"newPath"`
+}
+
+type LocalRenameResponse struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
+func (m *SFTPManager) LocalRename(req LocalRenameRequest) (LocalRenameResponse, error) {
+	err := os.Rename(req.OldPath, req.NewPath)
+	if err != nil {
+		return LocalRenameResponse{Success: false, Error: err.Error()}, nil
+	}
+	return LocalRenameResponse{Success: true}, nil
 }

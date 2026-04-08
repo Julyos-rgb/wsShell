@@ -4,31 +4,37 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"strings"
 	"sync"
 	"time"
+
+	"wsShell/internal/store"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 	sshcrypto "golang.org/x/crypto/ssh"
 )
 
 type SSHService struct {
-	mu       sync.RWMutex
-	sessions map[string]*sshSession
-	clients  map[string]*sshcrypto.Client
-	Ctx      context.Context
+	mu        sync.RWMutex
+	sessions  map[string]*sshSession
+	clients   map[string]*sshcrypto.Client
+	latencies map[string]int64
+	Ctx       context.Context
 }
 
 type sshSession struct {
-	session *sshcrypto.Session
-	stdin   chan string
-	done    chan struct{}
+	session  *sshcrypto.Session
+	stdin    chan string
+	done     chan struct{}
+	stopPing chan struct{}
 }
 
 func NewSSHService() *SSHService {
 	return &SSHService{
-		sessions: make(map[string]*sshSession),
-		clients:  make(map[string]*sshcrypto.Client),
+		sessions:  make(map[string]*sshSession),
+		clients:   make(map[string]*sshcrypto.Client),
+		latencies: make(map[string]int64),
 	}
 }
 
@@ -62,9 +68,11 @@ func (s *SSHService) Connect(req ConnectRequest) (ConnectResponse, error) {
 		req.Port = 22
 	}
 
+	hostKeyCallback := s.createHostKeyCallback(req.Host)
+
 	config := &sshcrypto.ClientConfig{
 		User:            req.Username,
-		HostKeyCallback: sshcrypto.InsecureIgnoreHostKey(),
+		HostKeyCallback: hostKeyCallback,
 		Timeout:         10 * time.Second,
 	}
 
@@ -132,9 +140,10 @@ func (s *SSHService) Connect(req ConnectRequest) (ConnectResponse, error) {
 	}
 
 	ss := &sshSession{
-		session: session,
-		stdin:   make(chan string, 256),
-		done:    make(chan struct{}),
+		session:  session,
+		stdin:    make(chan string, 256),
+		done:     make(chan struct{}),
+		stopPing: make(chan struct{}),
 	}
 
 	s.mu.Lock()
@@ -142,12 +151,20 @@ func (s *SSHService) Connect(req ConnectRequest) (ConnectResponse, error) {
 	s.clients[sessionID] = client
 	s.mu.Unlock()
 
+	go s.startKeepalive(sessionID, client, ss.stopPing)
+
 	go func() {
 		buf := make([]byte, 4096)
 		for {
 			n, err := stdoutPipe.Read(buf)
 			if err != nil {
 				close(ss.done)
+				if s.Ctx != nil {
+					runtime.EventsEmit(s.Ctx, "ssh:"+sessionID+":disconnected", map[string]interface{}{
+						"sessionId": sessionID,
+						"error":     err.Error(),
+					})
+				}
 				return
 			}
 			if n > 0 {
@@ -260,6 +277,7 @@ func (s *SSHService) Disconnect(sessionID string) error {
 
 	if ss, ok := s.sessions[sessionID]; ok {
 		close(ss.stdin)
+		close(ss.stopPing)
 		ss.session.Close()
 		delete(s.sessions, sessionID)
 	}
@@ -267,6 +285,7 @@ func (s *SSHService) Disconnect(sessionID string) error {
 		client.Close()
 		delete(s.clients, sessionID)
 	}
+	delete(s.latencies, sessionID)
 
 	log.Printf("SSH disconnected: %s", sessionID)
 	return nil
@@ -424,4 +443,112 @@ func (s *SSHService) CreateShell(req CreateShellRequest) (CreateShellResponse, e
 		Success:   true,
 		SessionID: sessionID,
 	}, nil
+}
+
+func (s *SSHService) startKeepalive(sessionID string, client *sshcrypto.Client, stop chan struct{}) {
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-stop:
+			return
+		case <-ticker.C:
+			start := time.Now()
+			_, _, err := client.SendRequest("keepalive@wsshell", true, nil)
+			elapsed := time.Since(start).Milliseconds()
+
+			s.mu.Lock()
+			if err != nil {
+				s.latencies[sessionID] = -1
+				if s.Ctx != nil {
+					runtime.EventsEmit(s.Ctx, "ssh:"+sessionID+":keepalive:failed", map[string]interface{}{
+						"sessionId": sessionID,
+						"error":     err.Error(),
+					})
+				}
+			} else {
+				s.latencies[sessionID] = elapsed
+				if s.Ctx != nil {
+					runtime.EventsEmit(s.Ctx, "ssh:"+sessionID+":keepalive", map[string]interface{}{
+						"sessionId": sessionID,
+						"latency":   elapsed,
+					})
+				}
+			}
+			s.mu.Unlock()
+		}
+	}
+}
+
+type GetLatencyRequest struct {
+	SessionID string `json:"sessionId"`
+}
+
+type GetLatencyResponse struct {
+	Success bool  `json:"success"`
+	Latency int64 `json:"latency"`
+}
+
+func (s *SSHService) GetLatency(req GetLatencyRequest) (GetLatencyResponse, error) {
+	s.mu.RLock()
+	latency, ok := s.latencies[req.SessionID]
+	s.mu.RUnlock()
+
+	if !ok {
+		return GetLatencyResponse{Success: false, Latency: 0}, nil
+	}
+
+	return GetLatencyResponse{Success: true, Latency: latency}, nil
+}
+
+func (s *SSHService) createHostKeyCallback(host string) sshcrypto.HostKeyCallback {
+	return func(hostname string, remote net.Addr, key sshcrypto.PublicKey) error {
+		keyType := key.Type()
+		fingerprint := store.FingerprintSHA256(key.Marshal())
+
+		repo, err := store.NewHostKeyRepository()
+		if err != nil {
+			log.Printf("Host key check: cannot open DB, allowing: %v", err)
+			return nil
+		}
+
+		knownKeys, err := repo.GetByHost(hostname)
+		if err != nil {
+			log.Printf("Host key check: DB error, allowing: %v", err)
+			return nil
+		}
+
+		for _, known := range knownKeys {
+			if known.KeyType == keyType {
+				if known.Fingerprint == fingerprint {
+					return nil
+				}
+				errMsg := fmt.Sprintf("HOST KEY MISMATCH for %s!\nExpected: %s\nGot: %s\nPossible MITM attack!",
+					hostname, known.Fingerprint, fingerprint)
+				log.Printf("SECURITY: %s", errMsg)
+				return fmt.Errorf("%s", errMsg)
+			}
+		}
+
+		if err := repo.Save(store.HostKeyRow{
+			Host:        hostname,
+			KeyType:     keyType,
+			Fingerprint: fingerprint,
+		}); err != nil {
+			log.Printf("Host key save error: %v", err)
+		}
+
+		log.Printf("New host key saved for %s (%s): %s", hostname, keyType, fingerprint)
+
+		if s.Ctx != nil {
+			runtime.EventsEmit(s.Ctx, "ssh:hostkey:new", map[string]interface{}{
+				"host":        hostname,
+				"keyType":     keyType,
+				"fingerprint": fingerprint,
+			})
+		}
+
+		return nil
+	}
 }

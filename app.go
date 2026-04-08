@@ -37,6 +37,7 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.sshService.Ctx = ctx
 	a.sftpManager.Ctx = ctx
+	a.sftpManager.SetSSHProvider(a.sshService)
 	a.vncProxy.SetSSHProvider(a.sshService)
 	log.Println("wsShell started")
 }

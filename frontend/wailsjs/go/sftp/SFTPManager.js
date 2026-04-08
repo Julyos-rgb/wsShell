@@ -6,6 +6,10 @@ export function Connect(arg1) {
   return window['go']['sftp']['SFTPManager']['Connect'](arg1);
 }
 
+export function ConnectFromSSH(arg1) {
+  return window['go']['sftp']['SFTPManager']['ConnectFromSSH'](arg1);
+}
+
 export function DeleteFile(arg1) {
   return window['go']['sftp']['SFTPManager']['DeleteFile'](arg1);
 }
@@ -30,6 +34,18 @@ export function ListLocalFiles(arg1) {
   return window['go']['sftp']['SFTPManager']['ListLocalFiles'](arg1);
 }
 
+export function LocalDelete(arg1) {
+  return window['go']['sftp']['SFTPManager']['LocalDelete'](arg1);
+}
+
+export function LocalMkdir(arg1) {
+  return window['go']['sftp']['SFTPManager']['LocalMkdir'](arg1);
+}
+
+export function LocalRename(arg1) {
+  return window['go']['sftp']['SFTPManager']['LocalRename'](arg1);
+}
+
 export function Mkdir(arg1) {
   return window['go']['sftp']['SFTPManager']['Mkdir'](arg1);
 }
@@ -44,6 +60,10 @@ export function ResumeDownload(arg1) {
 
 export function ResumeUpload(arg1) {
   return window['go']['sftp']['SFTPManager']['ResumeUpload'](arg1);
+}
+
+export function SetSSHProvider(arg1) {
+  return window['go']['sftp']['SFTPManager']['SetSSHProvider'](arg1);
 }
 
 export function UploadFile(arg1) {

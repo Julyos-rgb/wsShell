@@ -140,46 +140,58 @@ const VncViewer: React.FC = () => {
   const vncPort = activeServer?.vncPort || 5900
 
   return (
-    <div className={`flex flex-col ${fullscreen ? 'fixed inset-0 z-50' : 'h-full'}`}>
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-tertiary border-b border-secondary flex-shrink-0">
+    <div className={`flex flex-col ${fullscreen ? 'fixed inset-0 z-50 bg-surface-400' : 'h-full'}`}>
+      <div className="flex items-center gap-2 px-3 py-1.5 glass-panel border-b border-border/40 flex-shrink-0 rounded-none">
         {status === 'idle' && (
           <button
-            className="px-3 py-1 text-xs bg-primary text-white rounded hover:bg-primary/80 transition-colors disabled:opacity-50"
+            className="btn-primary text-xs"
             onClick={handleConnect}
             disabled={!activeServer?.vncEnabled || !isConnected}
           >
-            连接 VNC
+            <span className="flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              连接 VNC
+            </span>
           </button>
         )}
         {status === 'connected' && (
           <>
-            <button
-              className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
-              onClick={disconnect}
-            >
-              断开 VNC
+            <button className="btn-danger text-xs" onClick={disconnect}>
+              <span className="flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                </svg>
+                断开
+              </span>
             </button>
-            <button
-              className="px-3 py-1 text-xs bg-surface text-gray-300 rounded hover:bg-surface/80 transition-colors border border-secondary"
-              onClick={handleFullscreen}
-            >
-              {fullscreen ? '退出全屏' : '全屏'}
+            <button className="btn-ghost text-xs" onClick={handleFullscreen}>
+              <span className="flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                </svg>
+                {fullscreen ? '退出全屏' : '全屏'}
+              </span>
             </button>
           </>
         )}
         {status === 'connecting' && (
-          <span className="text-xs text-yellow-400">正在建立连接...</span>
+          <span className="text-xs text-accent-yellow flex items-center gap-1.5">
+            <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            正在建立连接...
+          </span>
         )}
-        <span className="text-xs text-gray-500">
-          :{vncPort}
-        </span>
+        <span className="text-xs text-text-dim font-mono">:{vncPort}</span>
         {status === 'error' && (
           <>
-            <span className="text-xs text-red-400">{errorMsg}</span>
-            <button
-              className="px-3 py-1 text-xs bg-primary text-white rounded hover:bg-primary/80 transition-colors"
-              onClick={handleConnect}
-            >
+            <span className="text-xs text-danger">{errorMsg}</span>
+            <button className="btn-primary text-xs" onClick={handleConnect}>
               重试
             </button>
           </>
@@ -191,22 +203,24 @@ const VncViewer: React.FC = () => {
             placeholder="VNC 密码（可选）"
             value={vncPassword}
             onChange={(e) => setVncPassword(e.target.value)}
-            className="px-2 py-1 text-xs bg-surface border border-secondary rounded text-gray-300 w-36"
+            className="input-field w-36 text-xs py-1"
           />
         )}
       </div>
 
-      <div className="flex-1 relative bg-black">
+      <div className="flex-1 relative bg-surface-500">
         {status === 'idle' && (
-          <div className="absolute inset-0 flex items-center justify-center text-gray-600">
+          <div className="absolute inset-0 flex items-center justify-center text-text-dim animate-fade-in">
             <div className="text-center">
-              <div className="text-4xl mb-3">🖥</div>
-              <div>点击"连接 VNC"开始远程桌面</div>
+              <svg className="w-16 h-16 mx-auto mb-4 text-text-dim/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <div className="text-sm">点击"连接 VNC"开始远程桌面</div>
               {!isConnected && (
-                <div className="text-sm mt-1 text-yellow-500">请先通过 SSH 连接服务器</div>
+                <div className="text-xs mt-2 text-accent-yellow">请先通过 SSH 连接服务器</div>
               )}
               {!activeServer?.vncEnabled && isConnected && (
-                <div className="text-sm mt-1 text-gray-500">
+                <div className="text-xs mt-2 text-text-dim">
                   VNC 未启用，请在服务器设置中启用 VNC
                 </div>
               )}
@@ -214,34 +228,33 @@ const VncViewer: React.FC = () => {
           </div>
         )}
         {status === 'error' && (
-          <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+          <div className="absolute inset-0 flex items-center justify-center text-text-dim animate-fade-in">
             <div className="text-center">
-              <div className="text-4xl mb-3">⚠️</div>
-              <div className="text-red-400 mb-2">{errorMsg}</div>
-              <div className="text-sm text-gray-500">
-                请检查：
-                <br />
-                1. 远程服务器已安装并启动 VNC 服务
-                <br />
-                2. VNC 端口号配置正确（默认 5900）
-                <br />
-                3. SSH 隧道模式已正确启用
+              <svg className="w-12 h-12 mx-auto mb-3 text-danger/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div className="text-danger mb-2">{errorMsg}</div>
+              <div className="text-xs text-text-dim space-y-1">
+                <p>请检查：</p>
+                <p>1. 远程服务器已安装并启动 VNC 服务</p>
+                <p>2. VNC 端口号配置正确（默认 5900）</p>
+                <p>3. SSH 隧道模式已正确启用</p>
               </div>
-              <button
-                className="mt-4 px-4 py-2 text-sm bg-primary text-white rounded hover:bg-primary/80"
-                onClick={handleConnect}
-              >
+              <button className="btn-primary mt-4 text-xs" onClick={handleConnect}>
                 重新连接
               </button>
             </div>
           </div>
         )}
         {status === 'connecting' && (
-          <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+          <div className="absolute inset-0 flex items-center justify-center text-text-dim">
             <div className="text-center">
-              <div className="animate-spin text-4xl mb-3">⏳</div>
-              <div className="text-yellow-400">正在连接 VNC 服务器...</div>
-              <div className="text-sm text-gray-500 mt-1">
+              <svg className="w-10 h-10 mx-auto mb-3 animate-spin text-accent-yellow" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              </svg>
+              <div className="text-accent-yellow text-sm">正在连接 VNC 服务器...</div>
+              <div className="text-xs text-text-dim mt-1">
                 {activeServer?.vncTunnel ? '通过 SSH 隧道' : '直接连接'} → {activeServer?.host}:{vncPort}
               </div>
             </div>
