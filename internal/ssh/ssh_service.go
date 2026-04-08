@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -283,9 +284,7 @@ func (s *SSHService) IsConnected(sessionID string) (IsConnectedResponse, error) 
 }
 
 func (s *SSHService) GetClient(sessionID string) *sshcrypto.Client {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.clients[sessionID]
+	return s.resolveClient(sessionID)
 }
 
 type CreateShellRequest struct {
@@ -298,12 +297,25 @@ type CreateShellResponse struct {
 	SessionID string `json:"sessionId,omitempty"`
 }
 
-func (s *SSHService) CreateShell(req CreateShellRequest) (CreateShellResponse, error) {
+func (s *SSHService) resolveClient(sessionID string) *sshcrypto.Client {
 	s.mu.RLock()
-	client, ok := s.clients[req.BaseSessionID]
-	s.mu.RUnlock()
+	defer s.mu.RUnlock()
 
-	if !ok {
+	if client, ok := s.clients[sessionID]; ok {
+		return client
+	}
+	if idx := strings.LastIndex(sessionID, "#"); idx > 0 && idx < len(sessionID)-1 {
+		baseID := sessionID[:idx]
+		if client, ok := s.clients[baseID]; ok {
+			return client
+		}
+	}
+	return nil
+}
+
+func (s *SSHService) CreateShell(req CreateShellRequest) (CreateShellResponse, error) {
+	client := s.resolveClient(req.BaseSessionID)
+	if client == nil {
 		return CreateShellResponse{Success: false, Error: "base connection not found"}, nil
 	}
 
