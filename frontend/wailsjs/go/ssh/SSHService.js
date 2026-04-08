@@ -18,6 +18,10 @@ export function GetClient(arg1) {
   return window['go']['ssh']['SSHService']['GetClient'](arg1);
 }
 
+export function GetHostKeyCallback(arg1) {
+  return window['go']['ssh']['SSHService']['GetHostKeyCallback'](arg1);
+}
+
 export function GetLatency(arg1) {
   return window['go']['ssh']['SSHService']['GetLatency'](arg1);
 }

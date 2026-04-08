@@ -10,6 +10,8 @@ export function Disconnect(arg1:string):Promise<void>;
 
 export function GetClient(arg1:string):Promise<ssh.Client>;
 
+export function GetHostKeyCallback(arg1:string):Promise<ssh.HostKeyCallback>;
+
 export function GetLatency(arg1:ssh.GetLatencyRequest):Promise<ssh.GetLatencyResponse>;
 
 export function IsConnected(arg1:string):Promise<ssh.IsConnectedResponse>;
