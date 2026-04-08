@@ -14,14 +14,14 @@ function App() {
   const registeredRef = useRef<Set<string>>(new Set())
 
   useEffect(() => {
-    const currentIds = new Set<string>()
+    const newlyRegistered: string[] = []
 
     connections.forEach((conn, _serverId) => {
       const sid = conn.sessionId
-      currentIds.add(sid)
 
       if (registeredRef.current.has(sid)) return
       registeredRef.current.add(sid)
+      newlyRegistered.push(sid)
 
       const handleKeepalive = (data: any) => {
         if (data && typeof data.latency === 'number') {
@@ -75,14 +75,29 @@ function App() {
       EventsOn(`ssh:${sid}:disconnected`, handleDisconnected)
     })
 
+    const staleIds: string[] = []
     registeredRef.current.forEach((sid) => {
-      if (!currentIds.has(sid)) {
+      let found = false
+      connections.forEach((c) => {
+        if (c.sessionId === sid) found = true
+      })
+      if (!found) staleIds.push(sid)
+    })
+    staleIds.forEach((sid) => {
+      EventsOff(`ssh:${sid}:keepalive`)
+      EventsOff(`ssh:${sid}:keepalive:failed`)
+      EventsOff(`ssh:${sid}:disconnected`)
+      registeredRef.current.delete(sid)
+    })
+
+    return () => {
+      newlyRegistered.forEach((sid) => {
         EventsOff(`ssh:${sid}:keepalive`)
         EventsOff(`ssh:${sid}:keepalive:failed`)
         EventsOff(`ssh:${sid}:disconnected`)
         registeredRef.current.delete(sid)
-      }
-    })
+      })
+    }
   }, [connections])
 
   useEffect(() => {
