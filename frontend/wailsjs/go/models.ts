@@ -1,124 +1,3 @@
-export namespace autocomplete {
-	
-	export class ClearCacheRequest {
-	    sessionId: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new ClearCacheRequest(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.sessionId = source["sessionId"];
-	    }
-	}
-	export class ClearCacheResponse {
-	    success: boolean;
-	
-	    static createFrom(source: any = {}) {
-	        return new ClearCacheResponse(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.success = source["success"];
-	    }
-	}
-	export class CompleteRequest {
-	    sessionId: string;
-	    prefix: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new CompleteRequest(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.sessionId = source["sessionId"];
-	        this.prefix = source["prefix"];
-	    }
-	}
-	export class Suggestion {
-	    command: string;
-	    description?: string;
-	    type: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new Suggestion(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.command = source["command"];
-	        this.description = source["description"];
-	        this.type = source["type"];
-	    }
-	}
-	export class CompleteResponse {
-	    success: boolean;
-	    suggestions?: Suggestion[];
-	    error?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new CompleteResponse(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.success = source["success"];
-	        this.suggestions = this.convertValues(source["suggestions"], Suggestion);
-	        this.error = source["error"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class FetchCommandsRequest {
-	    sessionId: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new FetchCommandsRequest(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.sessionId = source["sessionId"];
-	    }
-	}
-	export class FetchCommandsResponse {
-	    success: boolean;
-	    commands?: string[];
-	    error?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new FetchCommandsResponse(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.success = source["success"];
-	        this.commands = source["commands"];
-	        this.error = source["error"];
-	    }
-	}
-
-}
-
 export namespace config {
 	
 	export class ServerConfig {
@@ -351,370 +230,187 @@ export namespace config {
 
 }
 
+export namespace autocomplete {
+
+	export class ClearCacheRequest {
+	    sessionId: string;
+
+	    static createFrom(source: any = {}) {
+	        return new ClearCacheRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	    }
+	}
+	export class ClearCacheResponse {
+	    success: boolean;
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new ClearCacheResponse(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.error = source["error"];
+	    }
+	}
+	export class CompleteRequest {
+	    sessionId: string;
+	    prefix: string;
+
+	    static createFrom(source: any = {}) {
+	        return new CompleteRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.prefix = source["prefix"];
+	    }
+	}
+	export class Suggestion {
+	    command: string;
+	    description: string;
+	    type: string;
+
+	    static createFrom(source: any = {}) {
+	        return new Suggestion(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.command = source["command"];
+	        this.description = source["description"];
+	        this.type = source["type"];
+	    }
+	}
+	export class CompleteResponse {
+	    success: boolean;
+	    suggestions: Suggestion[];
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new CompleteResponse(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.suggestions = this.convertValues(source["suggestions"], Suggestion);
+	        this.error = source["error"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class FetchCommandsRequest {
+	    sessionId: string;
+
+	    static createFrom(source: any = {}) {
+	        return new FetchCommandsRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	    }
+	}
+	export class FetchCommandsResponse {
+	    success: boolean;
+	    commands: string[];
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new FetchCommandsResponse(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.commands = source["commands"];
+	        this.error = source["error"];
+	    }
+	}
+
+}
+
 export namespace monitor {
-	
-	export class DockerActionRequest {
-	    sessionId: string;
-	    container: string;
-	    action: string;
-	
+
+	export class SystemInfo {
+	    hostname: string;
+	    os: string;
+	    kernel: string;
+	    arch: string;
+	    uptime: string;
+	    users: string;
+	    cpuCores: number;
+	    cpuModel: string;
+	    totalMemMB: number;
+
 	    static createFrom(source: any = {}) {
-	        return new DockerActionRequest(source);
+	        return new SystemInfo(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.sessionId = source["sessionId"];
-	        this.container = source["container"];
-	        this.action = source["action"];
+	        this.hostname = source["hostname"];
+	        this.os = source["os"];
+	        this.kernel = source["kernel"];
+	        this.arch = source["arch"];
+	        this.uptime = source["uptime"];
+	        this.users = source["users"];
+	        this.cpuCores = source["cpuCores"];
+	        this.cpuModel = source["cpuModel"];
+	        this.totalMemMB = source["totalMemMB"];
 	    }
 	}
-	export class DockerActionResponse {
-	    success: boolean;
-	    error?: string;
-	
+	export class ResourceUsage {
+	    cpuPercent: number;
+	    memPercent: number;
+	    memUsedMB: number;
+	    memTotalMB: number;
+	    diskPercent: number;
+	    diskUsedGB: number;
+	    diskTotalGB: number;
+	    load1: number;
+	    load5: number;
+	    load15: number;
+
 	    static createFrom(source: any = {}) {
-	        return new DockerActionResponse(source);
+	        return new ResourceUsage(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.success = source["success"];
-	        this.error = source["error"];
-	    }
-	}
-	export class DockerContainer {
-	    id: string;
-	    name: string;
-	    image: string;
-	    status: string;
-	    ports: string;
-	    state: string;
-	    cpuPct: string;
-	    memUsage: string;
-	    memPct: string;
-	    netIO: string;
-	    blockIO: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new DockerContainer(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.name = source["name"];
-	        this.image = source["image"];
-	        this.status = source["status"];
-	        this.ports = source["ports"];
-	        this.state = source["state"];
-	        this.cpuPct = source["cpuPct"];
-	        this.memUsage = source["memUsage"];
-	        this.memPct = source["memPct"];
-	        this.netIO = source["netIO"];
-	        this.blockIO = source["blockIO"];
-	    }
-	}
-	export class DockerLogsRequest {
-	    sessionId: string;
-	    container: string;
-	    tail?: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new DockerLogsRequest(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.sessionId = source["sessionId"];
-	        this.container = source["container"];
-	        this.tail = source["tail"];
-	    }
-	}
-	export class DockerLogsResponse {
-	    success: boolean;
-	    logs?: string;
-	    error?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new DockerLogsResponse(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.success = source["success"];
-	        this.logs = source["logs"];
-	        this.error = source["error"];
-	    }
-	}
-	export class DockerStatsRequest {
-	    sessionId: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new DockerStatsRequest(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.sessionId = source["sessionId"];
-	    }
-	}
-	export class DockerStatsResponse {
-	    success: boolean;
-	    containers?: DockerContainer[];
-	    error?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new DockerStatsResponse(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.success = source["success"];
-	        this.containers = this.convertValues(source["containers"], DockerContainer);
-	        this.error = source["error"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class GetConnectionsRequest {
-	    sessionId: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new GetConnectionsRequest(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.sessionId = source["sessionId"];
-	    }
-	}
-	export class NetConnection {
-	    proto: string;
-	    localAddr: string;
-	    foreign: string;
-	    state: string;
-	    pid: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new NetConnection(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.proto = source["proto"];
-	        this.localAddr = source["localAddr"];
-	        this.foreign = source["foreign"];
-	        this.state = source["state"];
-	        this.pid = source["pid"];
-	    }
-	}
-	export class GetConnectionsResponse {
-	    success: boolean;
-	    connections?: NetConnection[];
-	    error?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new GetConnectionsResponse(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.success = source["success"];
-	        this.connections = this.convertValues(source["connections"], NetConnection);
-	        this.error = source["error"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class GetDockerRequest {
-	    sessionId: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new GetDockerRequest(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.sessionId = source["sessionId"];
-	    }
-	}
-	export class GetDockerResponse {
-	    success: boolean;
-	    containers?: DockerContainer[];
-	    error?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new GetDockerResponse(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.success = source["success"];
-	        this.containers = this.convertValues(source["containers"], DockerContainer);
-	        this.error = source["error"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class GetNetTrafficRequest {
-	    sessionId: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new GetNetTrafficRequest(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.sessionId = source["sessionId"];
-	    }
-	}
-	export class NetInterface {
-	    name: string;
-	    rxBytes: number;
-	    txBytes: number;
-	    rxPackets: number;
-	    txPackets: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new NetInterface(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.rxBytes = source["rxBytes"];
-	        this.txBytes = source["txBytes"];
-	        this.rxPackets = source["rxPackets"];
-	        this.txPackets = source["txPackets"];
-	    }
-	}
-	export class NetTraffic {
-	    interfaces: NetInterface[];
-	    timestamp: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new NetTraffic(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.interfaces = this.convertValues(source["interfaces"], NetInterface);
-	        this.timestamp = source["timestamp"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class GetNetTrafficResponse {
-	    success: boolean;
-	    traffic?: NetTraffic;
-	    error?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new GetNetTrafficResponse(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.success = source["success"];
-	        this.traffic = this.convertValues(source["traffic"], NetTraffic);
-	        this.error = source["error"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class GetProcessesRequest {
-	    sessionId: string;
-	    sort?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new GetProcessesRequest(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.sessionId = source["sessionId"];
-	        this.sort = source["sort"];
+	        this.cpuPercent = source["cpuPercent"];
+	        this.memPercent = source["memPercent"];
+	        this.memUsedMB = source["memUsedMB"];
+	        this.memTotalMB = source["memTotalMB"];
+	        this.diskPercent = source["diskPercent"];
+	        this.diskUsedGB = source["diskUsedGB"];
+	        this.diskTotalGB = source["diskTotalGB"];
+	        this.load1 = source["load1"];
+	        this.load5 = source["load5"];
+	        this.load15 = source["load15"];
 	    }
 	}
 	export class ProcessInfo {
@@ -725,11 +421,11 @@ export namespace monitor {
 	    vsz: number;
 	    rss: number;
 	    command: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new ProcessInfo(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.pid = source["pid"];
@@ -741,22 +437,36 @@ export namespace monitor {
 	        this.command = source["command"];
 	    }
 	}
+	export class GetProcessesRequest {
+	    sessionId: string;
+	    sort: string;
+
+	    static createFrom(source: any = {}) {
+	        return new GetProcessesRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.sort = source["sort"];
+	    }
+	}
 	export class GetProcessesResponse {
 	    success: boolean;
-	    processes?: ProcessInfo[];
+	    processes: ProcessInfo[];
 	    error?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new GetProcessesResponse(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.success = source["success"];
 	        this.processes = this.convertValues(source["processes"], ProcessInfo);
 	        this.error = source["error"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -778,12 +488,12 @@ export namespace monitor {
 	export class KillProcessRequest {
 	    sessionId: string;
 	    pid: number;
-	    signal?: string;
-	
+	    signal: string;
+
 	    static createFrom(source: any = {}) {
 	        return new KillProcessRequest(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.sessionId = source["sessionId"];
@@ -794,74 +504,91 @@ export namespace monitor {
 	export class KillProcessResponse {
 	    success: boolean;
 	    error?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new KillProcessResponse(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.success = source["success"];
 	        this.error = source["error"];
 	    }
 	}
-	
-	
-	
-	export class PingRequest {
-	    sessionId: string;
-	    host: string;
-	    count?: number;
-	
+	export class DockerContainer {
+	    id: string;
+	    name: string;
+	    image: string;
+	    status: string;
+	    ports: string;
+	    state: string;
+
 	    static createFrom(source: any = {}) {
-	        return new PingRequest(source);
+	        return new DockerContainer(source);
 	    }
-	
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.image = source["image"];
+	        this.status = source["status"];
+	        this.ports = source["ports"];
+	        this.state = source["state"];
+	    }
+	}
+	export class DockerStat {
+	    id: string;
+	    name: string;
+	    cpuPct: string;
+	    memUsage: string;
+	    memPct: string;
+	    netIO: string;
+	    blockIO: string;
+
+	    static createFrom(source: any = {}) {
+	        return new DockerStat(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.cpuPct = source["cpuPct"];
+	        this.memUsage = source["memUsage"];
+	        this.memPct = source["memPct"];
+	        this.netIO = source["netIO"];
+	        this.blockIO = source["blockIO"];
+	    }
+	}
+	export class GetDockerRequest {
+	    sessionId: string;
+
+	    static createFrom(source: any = {}) {
+	        return new GetDockerRequest(source);
+	    }
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.sessionId = source["sessionId"];
-	        this.host = source["host"];
-	        this.count = source["count"];
 	    }
 	}
-	export class PingStat {
-	    min: number;
-	    avg: number;
-	    max: number;
-	    lost: number;
-	    count: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new PingStat(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.min = source["min"];
-	        this.avg = source["avg"];
-	        this.max = source["max"];
-	        this.lost = source["lost"];
-	        this.count = source["count"];
-	    }
-	}
-	export class PingResponse {
+	export class GetDockerResponse {
 	    success: boolean;
-	    output?: string;
-	    stats?: PingStat;
+	    containers: DockerContainer[];
 	    error?: string;
-	
+
 	    static createFrom(source: any = {}) {
-	        return new PingResponse(source);
+	        return new GetDockerResponse(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.success = source["success"];
-	        this.output = source["output"];
-	        this.stats = this.convertValues(source["stats"], PingStat);
+	        this.containers = this.convertValues(source["containers"], DockerContainer);
 	        this.error = source["error"];
 	    }
-	
+
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -880,46 +607,122 @@ export namespace monitor {
 		    return a;
 		}
 	}
-	
-	
-	export class ResourceUsage {
-	    cpuPercent: number;
-	    memPercent: number;
-	    memUsedMB: number;
-	    memTotalMB: number;
-	    diskPercent: number;
-	    diskUsedGB: number;
-	    diskTotalGB: number;
-	    load1: number;
-	    load5: number;
-	    load15: number;
-	
+	export class DockerStatsRequest {
+	    sessionId: string;
+
 	    static createFrom(source: any = {}) {
-	        return new ResourceUsage(source);
+	        return new DockerStatsRequest(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.cpuPercent = source["cpuPercent"];
-	        this.memPercent = source["memPercent"];
-	        this.memUsedMB = source["memUsedMB"];
-	        this.memTotalMB = source["memTotalMB"];
-	        this.diskPercent = source["diskPercent"];
-	        this.diskUsedGB = source["diskUsedGB"];
-	        this.diskTotalGB = source["diskTotalGB"];
-	        this.load1 = source["load1"];
-	        this.load5 = source["load5"];
-	        this.load15 = source["load15"];
+	        this.sessionId = source["sessionId"];
+	    }
+	}
+	export class DockerStatsResponse {
+	    success: boolean;
+	    containers: DockerStat[];
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new DockerStatsResponse(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.containers = this.convertValues(source["containers"], DockerStat);
+	        this.error = source["error"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class DockerActionRequest {
+	    sessionId: string;
+	    container: string;
+	    action: string;
+
+	    static createFrom(source: any = {}) {
+	        return new DockerActionRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.container = source["container"];
+	        this.action = source["action"];
+	    }
+	}
+	export class DockerActionResponse {
+	    success: boolean;
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new DockerActionResponse(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.error = source["error"];
+	    }
+	}
+	export class DockerLogsRequest {
+	    sessionId: string;
+	    container: string;
+	    tail: number;
+
+	    static createFrom(source: any = {}) {
+	        return new DockerLogsRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.container = source["container"];
+	        this.tail = source["tail"];
+	    }
+	}
+	export class DockerLogsResponse {
+	    success: boolean;
+	    logs: string;
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new DockerLogsResponse(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.logs = source["logs"];
+	        this.error = source["error"];
 	    }
 	}
 	export class StartMonitorRequest {
 	    sessionId: string;
-	    interval?: number;
-	
+	    interval: number;
+
 	    static createFrom(source: any = {}) {
 	        return new StartMonitorRequest(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.sessionId = source["sessionId"];
@@ -929,25 +732,287 @@ export namespace monitor {
 	export class StartMonitorResponse {
 	    success: boolean;
 	    error?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new StartMonitorResponse(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.success = source["success"];
 	        this.error = source["error"];
 	    }
 	}
+	export class StopMonitorRequest {
+	    sessionId: string;
+
+	    static createFrom(source: any = {}) {
+	        return new StopMonitorRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	    }
+	}
+	export class StopMonitorResponse {
+	    success: boolean;
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new StopMonitorResponse(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.error = source["error"];
+	    }
+	}
+	export class ConnectionInfo {
+	    proto: string;
+	    localAddr: string;
+	    foreign: string;
+	    state: string;
+	    pid: string;
+
+	    static createFrom(source: any = {}) {
+	        return new ConnectionInfo(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.proto = source["proto"];
+	        this.localAddr = source["localAddr"];
+	        this.foreign = source["foreign"];
+	        this.state = source["state"];
+	        this.pid = source["pid"];
+	    }
+	}
+	export class GetConnectionsRequest {
+	    sessionId: string;
+
+	    static createFrom(source: any = {}) {
+	        return new GetConnectionsRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	    }
+	}
+	export class GetConnectionsResponse {
+	    success: boolean;
+	    connections: ConnectionInfo[];
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new GetConnectionsResponse(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.connections = this.convertValues(source["connections"], ConnectionInfo);
+	        this.error = source["error"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class NetTrafficData {
+	    sessionId: string;
+	    interface: string;
+	    rxSpeed: number;
+	    txSpeed: number;
+	    rxBytes: number;
+	    txBytes: number;
+
+	    static createFrom(source: any = {}) {
+	        return new NetTrafficData(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.interface = source["interface"];
+	        this.rxSpeed = source["rxSpeed"];
+	        this.txSpeed = source["txSpeed"];
+	        this.rxBytes = source["rxBytes"];
+	        this.txBytes = source["txBytes"];
+	    }
+	}
+	export class GetNetTrafficRequest {
+	    sessionId: string;
+
+	    static createFrom(source: any = {}) {
+	        return new GetNetTrafficRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	    }
+	}
+	export class GetNetTrafficResponse {
+	    success: boolean;
+	    interfaces: NetTrafficData[];
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new GetNetTrafficResponse(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.interfaces = this.convertValues(source["interfaces"], NetTrafficData);
+	        this.error = source["error"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class PingRequest {
+	    sessionId: string;
+	    host: string;
+	    count: number;
+
+	    static createFrom(source: any = {}) {
+	        return new PingRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.host = source["host"];
+	        this.count = source["count"];
+	    }
+	}
+	export class PingStats {
+	    min: string;
+	    avg: string;
+	    max: string;
+	    lost: string;
+	    count: number;
+
+	    static createFrom(source: any = {}) {
+	        return new PingStats(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.min = source["min"];
+	        this.avg = source["avg"];
+	        this.max = source["max"];
+	        this.lost = source["lost"];
+	        this.count = source["count"];
+	    }
+	}
+	export class PingResponse {
+	    success: boolean;
+	    output: string;
+	    stats?: PingStats;
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new PingResponse(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.output = source["output"];
+	        this.stats = this.convertValues(source["stats"], PingStats);
+	        this.error = source["error"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class TracerouteRequest {
+	    sessionId: string;
+	    host: string;
+
+	    static createFrom(source: any = {}) {
+	        return new TracerouteRequest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.host = source["host"];
+	    }
+	}
+	export class TracerouteResponse {
+	    success: boolean;
+	    output: string;
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new TracerouteResponse(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.output = source["output"];
+	        this.error = source["error"];
+	    }
+	}
 	export class StartNetMonitorRequest {
 	    sessionId: string;
-	    interval?: number;
-	
+	    interval: number;
+
 	    static createFrom(source: any = {}) {
 	        return new StartNetMonitorRequest(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.sessionId = source["sessionId"];
@@ -957,37 +1022,11 @@ export namespace monitor {
 	export class StartNetMonitorResponse {
 	    success: boolean;
 	    error?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new StartNetMonitorResponse(source);
 	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.success = source["success"];
-	        this.error = source["error"];
-	    }
-	}
-	export class StopMonitorRequest {
-	    sessionId: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new StopMonitorRequest(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.sessionId = source["sessionId"];
-	    }
-	}
-	export class StopMonitorResponse {
-	    success: boolean;
-	    error?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new StopMonitorResponse(source);
-	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.success = source["success"];
@@ -996,11 +1035,11 @@ export namespace monitor {
 	}
 	export class StopNetMonitorRequest {
 	    sessionId: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new StopNetMonitorRequest(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.sessionId = source["sessionId"];
@@ -1009,72 +1048,14 @@ export namespace monitor {
 	export class StopNetMonitorResponse {
 	    success: boolean;
 	    error?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new StopNetMonitorResponse(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.success = source["success"];
-	        this.error = source["error"];
-	    }
-	}
-	export class SystemInfo {
-	    hostname: string;
-	    os: string;
-	    kernel: string;
-	    arch: string;
-	    uptime: string;
-	    users: number;
-	    cpuCores: number;
-	    cpuModel: string;
-	    totalMemMB: number;
-	
-	    static createFrom(source: any = {}) {
-	        return new SystemInfo(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.hostname = source["hostname"];
-	        this.os = source["os"];
-	        this.kernel = source["kernel"];
-	        this.arch = source["arch"];
-	        this.uptime = source["uptime"];
-	        this.users = source["users"];
-	        this.cpuCores = source["cpuCores"];
-	        this.cpuModel = source["cpuModel"];
-	        this.totalMemMB = source["totalMemMB"];
-	    }
-	}
-	export class TracerouteRequest {
-	    sessionId: string;
-	    host: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new TracerouteRequest(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.sessionId = source["sessionId"];
-	        this.host = source["host"];
-	    }
-	}
-	export class TracerouteResponse {
-	    success: boolean;
-	    output?: string;
-	    error?: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new TracerouteResponse(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.success = source["success"];
-	        this.output = source["output"];
 	        this.error = source["error"];
 	    }
 	}
