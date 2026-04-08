@@ -1,14 +1,36 @@
-node_modules/
-dist/
-build/bin/
-.superpowers/
+# Binaries
 *.exe
 *.dll
 *.so
 *.dylib
+build/bin/
+
+# Frontend
+node_modules/
 frontend/dist/
-.DS_Store
-Thumbs.db
+*.tsbuildinfo
+
+# Database
 *.db
 *.sqlite
-docs
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# AI & Dev tools
+CLAUDE.md
+.trae/
+.superpowers/
+docs/
+
+# Logs
+*.log
