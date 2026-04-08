@@ -7,6 +7,7 @@ import (
 	"wsShell/internal/config"
 	"wsShell/internal/sftp"
 	"wsShell/internal/ssh"
+	"wsShell/internal/store"
 	"wsShell/internal/vnc"
 )
 
@@ -19,10 +20,15 @@ type App struct {
 }
 
 func NewApp() *App {
+	repo, err := store.NewServerRepository()
+	if err != nil {
+		log.Fatalf("Failed to initialize server repository: %v", err)
+	}
+
 	return &App{
 		sshService:    ssh.NewSSHService(),
 		sftpManager:   sftp.NewSFTPManager(),
-		configManager: config.NewConfigManager(),
+		configManager: config.NewConfigManager(repo),
 		vncProxy:      vnc.NewProxy(),
 	}
 }

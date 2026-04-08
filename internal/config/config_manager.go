@@ -1,16 +1,12 @@
 package config
 
 import (
-	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"time"
 
 	"wsShell/internal/crypto"
 	"wsShell/internal/store"
-
-	_ "modernc.org/sqlite"
 )
 
 type ServerConfig struct {
@@ -33,13 +29,59 @@ type ServerConfig struct {
 	UpdatedAt   string   `json:"updatedAt,omitempty"`
 }
 
-type ConfigManager struct{}
+type ConfigManager struct {
+	repo store.ServerRepository
+}
 
-func NewConfigManager() *ConfigManager {
+func NewConfigManager(repo store.ServerRepository) *ConfigManager {
 	if err := crypto.InitMasterKey(); err != nil {
 		log.Printf("Warning: crypto init failed: %v", err)
 	}
-	return &ConfigManager{}
+	return &ConfigManager{repo: repo}
+}
+
+func rowToConfig(row store.ServerRow) ServerConfig {
+	return ServerConfig{
+		ID:          row.ID,
+		Name:        row.Name,
+		Group:       row.Group,
+		Host:        row.Host,
+		Port:        row.Port,
+		Username:    row.Username,
+		AuthType:    row.AuthType,
+		Password:    row.Password,
+		PrivateKey:  row.PrivateKey,
+		VNCEnabled:  row.VNCEnabled,
+		VNCPort:     row.VNCPort,
+		VNCPassword: row.VNCPassword,
+		VNCTunnel:   row.VNCTunnel,
+		Favorite:    row.Favorite,
+		Tags:        row.Tags,
+		CreatedAt:   row.CreatedAt,
+		UpdatedAt:   row.UpdatedAt,
+	}
+}
+
+func configToRow(s ServerConfig) store.ServerRow {
+	return store.ServerRow{
+		ID:          s.ID,
+		Name:        s.Name,
+		Group:       s.Group,
+		Host:        s.Host,
+		Port:        s.Port,
+		Username:    s.Username,
+		AuthType:    s.AuthType,
+		Password:    s.Password,
+		PrivateKey:  s.PrivateKey,
+		VNCEnabled:  s.VNCEnabled,
+		VNCPort:     s.VNCPort,
+		VNCPassword: s.VNCPassword,
+		VNCTunnel:   s.VNCTunnel,
+		Favorite:    s.Favorite,
+		Tags:        s.Tags,
+		CreatedAt:   s.CreatedAt,
+		UpdatedAt:   s.UpdatedAt,
+	}
 }
 
 type GetServersResponse struct {
@@ -47,48 +89,18 @@ type GetServersResponse struct {
 }
 
 func (c *ConfigManager) GetServers() (GetServersResponse, error) {
-	db, err := store.GetDB()
+	rows, err := c.repo.GetAll()
 	if err != nil {
 		return GetServersResponse{}, err
 	}
 
-	rows, err := db.Query(`SELECT id, name, grp, host, port, username, auth_type, password, private_key, vnc_enabled, vnc_port, vnc_password, vnc_tunnel, favorite, tags, created_at, updated_at FROM servers ORDER BY favorite DESC, name ASC`)
-	if err != nil {
-		return GetServersResponse{}, err
-	}
-	defer rows.Close()
-
-	var servers []ServerConfig
-	for rows.Next() {
-		var s ServerConfig
-		var tagsJSON string
-		var vncEnabled, vncTunnel, favorite int
-		var createdAt, updatedAt sql.NullString
-
-		err := rows.Scan(&s.ID, &s.Name, &s.Group, &s.Host, &s.Port, &s.Username, &s.AuthType, &s.Password, &s.PrivateKey, &vncEnabled, &s.VNCPort, &s.VNCPassword, &vncTunnel, &favorite, &tagsJSON, &createdAt, &updatedAt)
-		if err != nil {
-			return GetServersResponse{}, err
-		}
-
-		s.VNCEnabled = vncEnabled == 1
-		s.VNCTunnel = vncTunnel == 1
-		s.Favorite = favorite == 1
-		s.CreatedAt = createdAt.String
-		s.UpdatedAt = updatedAt.String
-
-		if err := json.Unmarshal([]byte(tagsJSON), &s.Tags); err != nil {
-			s.Tags = []string{}
-		}
-
+	servers := make([]ServerConfig, len(rows))
+	for i, row := range rows {
+		s := rowToConfig(row)
 		s.Password, _ = crypto.Decrypt(s.Password)
 		s.PrivateKey, _ = crypto.Decrypt(s.PrivateKey)
 		s.VNCPassword, _ = crypto.Decrypt(s.VNCPassword)
-
-		servers = append(servers, s)
-	}
-
-	if servers == nil {
-		servers = []ServerConfig{}
+		servers[i] = s
 	}
 
 	return GetServersResponse{Servers: servers}, nil
@@ -104,16 +116,10 @@ type AddServerResponse struct {
 }
 
 func (c *ConfigManager) AddServer(req AddServerRequest) (AddServerResponse, error) {
-	db, err := store.GetDB()
-	if err != nil {
-		return AddServerResponse{Success: false, Error: err.Error()}, nil
-	}
-
 	s := req.Server
 	if s.ID == "" {
 		s.ID = fmt.Sprintf("%d", time.Now().UnixNano())
 	}
-
 	if s.Port == 0 {
 		s.Port = 22
 	}
@@ -134,30 +140,11 @@ func (c *ConfigManager) AddServer(req AddServerRequest) (AddServerResponse, erro
 		return AddServerResponse{Success: false, Error: err.Error()}, nil
 	}
 
-	tagsJSON, _ := json.Marshal(s.Tags)
-	if tagsJSON == nil {
-		tagsJSON = []byte("[]")
-	}
+	s.Password = encPass
+	s.PrivateKey = encKey
+	s.VNCPassword = encVNCPass
 
-	vncEnabled := 0
-	if s.VNCEnabled {
-		vncEnabled = 1
-	}
-	vncTunnel := 0
-	if s.VNCTunnel {
-		vncTunnel = 1
-	}
-	favorite := 0
-	if s.Favorite {
-		favorite = 1
-	}
-
-	_, err = db.Exec(
-		`INSERT OR REPLACE INTO servers (id, name, grp, host, port, username, auth_type, password, private_key, vnc_enabled, vnc_port, vnc_password, vnc_tunnel, favorite, tags, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-		s.ID, s.Name, s.Group, s.Host, s.Port, s.Username, s.AuthType, encPass, encKey, vncEnabled, s.VNCPort, encVNCPass, vncTunnel, favorite, string(tagsJSON))
-
-	if err != nil {
+	if err := c.repo.Save(configToRow(s)); err != nil {
 		return AddServerResponse{Success: false, Error: err.Error()}, nil
 	}
 
@@ -174,11 +161,6 @@ type UpdateServerResponse struct {
 }
 
 func (c *ConfigManager) UpdateServer(req UpdateServerRequest) (UpdateServerResponse, error) {
-	db, err := store.GetDB()
-	if err != nil {
-		return UpdateServerResponse{Success: false, Error: err.Error()}, nil
-	}
-
 	s := req.Server
 	encPass, err := crypto.Encrypt(s.Password)
 	if err != nil {
@@ -193,29 +175,11 @@ func (c *ConfigManager) UpdateServer(req UpdateServerRequest) (UpdateServerRespo
 		return UpdateServerResponse{Success: false, Error: err.Error()}, nil
 	}
 
-	tagsJSON, _ := json.Marshal(s.Tags)
-	if tagsJSON == nil {
-		tagsJSON = []byte("[]")
-	}
+	s.Password = encPass
+	s.PrivateKey = encKey
+	s.VNCPassword = encVNCPass
 
-	vncEnabled := 0
-	if s.VNCEnabled {
-		vncEnabled = 1
-	}
-	vncTunnel := 0
-	if s.VNCTunnel {
-		vncTunnel = 1
-	}
-	favorite := 0
-	if s.Favorite {
-		favorite = 1
-	}
-
-	_, err = db.Exec(
-		`UPDATE servers SET name=?, grp=?, host=?, port=?, username=?, auth_type=?, password=?, private_key=?, vnc_enabled=?, vnc_port=?, vnc_password=?, vnc_tunnel=?, favorite=?, tags=?, updated_at=datetime('now') WHERE id=?`,
-		s.Name, s.Group, s.Host, s.Port, s.Username, s.AuthType, encPass, encKey, vncEnabled, s.VNCPort, encVNCPass, vncTunnel, favorite, string(tagsJSON), s.ID)
-
-	if err != nil {
+	if err := c.repo.Update(configToRow(s)); err != nil {
 		return UpdateServerResponse{Success: false, Error: err.Error()}, nil
 	}
 
@@ -232,16 +196,9 @@ type DeleteServerResponse struct {
 }
 
 func (c *ConfigManager) DeleteServer(req DeleteServerRequest) (DeleteServerResponse, error) {
-	db, err := store.GetDB()
-	if err != nil {
+	if err := c.repo.Delete(req.ID); err != nil {
 		return DeleteServerResponse{Success: false, Error: err.Error()}, nil
 	}
-
-	_, err = db.Exec(`DELETE FROM servers WHERE id=?`, req.ID)
-	if err != nil {
-		return DeleteServerResponse{Success: false, Error: err.Error()}, nil
-	}
-
 	return DeleteServerResponse{Success: true}, nil
 }
 
@@ -255,15 +212,8 @@ type ToggleFavoriteResponse struct {
 }
 
 func (c *ConfigManager) ToggleFavorite(req ToggleFavoriteRequest) (ToggleFavoriteResponse, error) {
-	db, err := store.GetDB()
-	if err != nil {
+	if err := c.repo.ToggleFavorite(req.ID); err != nil {
 		return ToggleFavoriteResponse{Success: false, Error: err.Error()}, nil
 	}
-
-	_, err = db.Exec(`UPDATE servers SET favorite = CASE WHEN favorite = 1 THEN 0 ELSE 1 END, updated_at=datetime('now') WHERE id=?`, req.ID)
-	if err != nil {
-		return ToggleFavoriteResponse{Success: false, Error: err.Error()}, nil
-	}
-
 	return ToggleFavoriteResponse{Success: true}, nil
 }
