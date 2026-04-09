@@ -93,6 +93,8 @@ const AddServerDialog: React.FC = () => {
 
           <input className="input-field text-xs font-mono" value={form.host} onChange={(e) => updateField('host', e.target.value)} placeholder="主机地址 (如 192.168.1.100)" />
 
+          <input className="input-field text-xs" value={form.group} onChange={(e) => updateField('group', e.target.value)} placeholder="分组（可选，如：生产环境、测试环境）" />
+
           <input className="input-field text-xs" value={form.username} onChange={(e) => updateField('username', e.target.value)} placeholder="用户名" />
 
           <div className="flex gap-2">
