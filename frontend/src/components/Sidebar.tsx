@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useUIStore, useConnectionStore, useTerminalTabStore } from '../stores/ui'
 import { ServerConfig } from '../types'
-import { GetServers, DeleteServer } from '../../wailsjs/go/config/ConfigManager'
+import { GetServers, DeleteServer, UpdateServer } from '../../wailsjs/go/config/ConfigManager'
 import { Connect as SSHConnect, Disconnect as SSHDisconnect, TrustHostKey } from '../../wailsjs/go/ssh/SSHService'
 import { ConnectFromSSH as SFTPConnectFromSSH, Disconnect as SFTPDisconnect } from '../../wailsjs/go/sftp/SFTPManager'
 import HostKeyDialog from './HostKeyDialog'
@@ -35,11 +35,12 @@ const Sidebar: React.FC = () => {
     addSftpSession, removeSftpSession,
   } = useConnectionStore()
   const { addTerminalTab, removeTerminalTab } = useTerminalTabStore()
-  const { confirm } = useDialog()
+  const { confirm, prompt: dialogPrompt } = useDialog()
   const [connecting, setConnecting] = useState<string | null>(null)
   const [hostKeyState, setHostKeyState] = useState<HostKeyState>(defaultHostKeyState)
   const [searchQuery, setSearchQuery] = useState('')
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { show: showContextMenu, ContextMenuOverlay } = useContextMenu()
 
@@ -204,7 +205,66 @@ const Sidebar: React.FC = () => {
     loadServers()
   }, [confirm, connections, activeServerId])
 
-  const handleServerClick = useCallback((server: ServerConfig) => {
+  const handleBatchSetGroup = useCallback(async () => {
+    if (selectedIds.size === 0) return
+    const existingGroups = [...new Set(servers.map(s => s.group).filter(Boolean))]
+    const hint = existingGroups.length > 0 ? `已有分组：${existingGroups.join('、')}` : ''
+    const groupName = await dialogPrompt({
+      title: `批量设置分组（${selectedIds.size} 台服务器）`,
+      message: hint || undefined,
+      placeholder: '输入分组名称',
+      confirmText: '设置',
+    })
+    if (groupName === null) return
+
+    const selectedServers = servers.filter(s => selectedIds.has(s.id))
+    for (const server of selectedServers) {
+      try {
+        await UpdateServer({ server: { ...server, group: groupName } } as any)
+      } catch (e) {
+        console.error(`Failed to update group for ${server.name}:`, e)
+      }
+    }
+    setSelectedIds(new Set())
+    loadServers()
+    setStatusMessage(`已将 ${selectedServers.length} 台服务器分组为"${groupName || '未分组'}"`)
+  }, [selectedIds, servers, dialogPrompt])
+
+  const handleBatchDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return
+    const ok = await confirm({
+      title: `批量删除（${selectedIds.size} 台服务器）`,
+      message: `确定删除选中的 ${selectedIds.size} 台服务器吗？此操作不可撤销。`,
+      confirmText: '全部删除',
+      danger: true,
+    })
+    if (!ok) return
+    const selectedServers = servers.filter(s => selectedIds.has(s.id))
+    for (const server of selectedServers) {
+      await disconnectServer(server)
+      await DeleteServer({ id: server.id } as any)
+    }
+    setSelectedIds(new Set())
+    loadServers()
+    setStatusMessage(`已删除 ${selectedServers.length} 台服务器`)
+  }, [selectedIds, servers, confirm, connections])
+
+  const handleServerClick = useCallback((e: React.MouseEvent, server: ServerConfig) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault()
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        if (next.has(server.id)) next.delete(server.id)
+        else next.add(server.id)
+        return next
+      })
+      return
+    }
+
+    if (selectedIds.size > 0) {
+      setSelectedIds(new Set())
+    }
+
     if (clickTimerRef.current) {
       clearTimeout(clickTimerRef.current)
       clickTimerRef.current = null
@@ -215,7 +275,7 @@ const Sidebar: React.FC = () => {
         setActiveServerId(server.id)
       }, 250)
     }
-  }, [connections, activeServerId])
+  }, [connections, activeServerId, selectedIds])
 
   const handleServerContextMenu = useCallback((e: React.MouseEvent, server: ServerConfig) => {
     const isConnected = server.id in connections
@@ -246,6 +306,28 @@ const Sidebar: React.FC = () => {
     items.push(
       { separator: true },
       {
+        label: '设置分组',
+        icon: (
+          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
+          </svg>
+        ),
+        onClick: async () => {
+          const existingGroups = [...new Set(servers.map(s => s.group).filter(Boolean))]
+          const hint = existingGroups.length > 0 ? `已有分组：${existingGroups.join('、')}` : ''
+          const groupName = await dialogPrompt({
+            title: '设置分组',
+            message: hint || undefined,
+            defaultValue: server.group || '',
+            placeholder: '分组名称（留空则取消分组）',
+            confirmText: '设置',
+          })
+          if (groupName === null) return
+          await UpdateServer({ server: { ...server, group: groupName } } as any)
+          loadServers()
+        },
+      },
+      {
         label: '编辑',
         icon: (
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -268,7 +350,39 @@ const Sidebar: React.FC = () => {
 
     setActiveServerId(server.id)
     showContextMenu(e, items)
-  }, [connections, showContextMenu])
+  }, [connections, showContextMenu, servers])
+
+  const handleBackgroundContextMenu = useCallback((e: React.MouseEvent) => {
+    if (selectedIds.size === 0) return
+    e.preventDefault()
+    const items: ContextMenuItem[] = [
+      {
+        label: `设置分组（${selectedIds.size} 台）`,
+        icon: (
+          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
+          </svg>
+        ),
+        onClick: handleBatchSetGroup,
+      },
+      { separator: true },
+      {
+        label: `删除选中（${selectedIds.size} 台）`,
+        danger: true,
+        icon: (
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        ),
+        onClick: handleBatchDelete,
+      },
+      {
+        label: '取消选择',
+        onClick: () => setSelectedIds(new Set()),
+      },
+    ]
+    showContextMenu(e, items)
+  }, [selectedIds, showContextMenu, handleBatchSetGroup, handleBatchDelete])
 
   const toggleGroup = useCallback((group: string) => {
     setCollapsedGroups((prev) => {
@@ -313,16 +427,21 @@ const Sidebar: React.FC = () => {
     const isConnected = server.id in connections
     const isActive = activeServerId === server.id
     const isConnecting = connecting === server.id
+    const isSelected = selectedIds.has(server.id)
 
     return (
       <div
         key={server.id}
         className={`group flex items-center gap-2 px-2 py-1.5 mx-1 rounded cursor-pointer transition-colors ${
-          isActive ? 'bg-primary-500/15 text-primary-400' : 'hover:bg-surface-50/40 text-text-muted'
+          isSelected
+            ? 'bg-primary-500/20 text-primary-400 ring-1 ring-primary-400/30'
+            : isActive
+              ? 'bg-primary-500/15 text-primary-400'
+              : 'hover:bg-surface-50/40 text-text-muted'
         }`}
-        onClick={() => handleServerClick(server)}
+        onClick={(e) => handleServerClick(e, server)}
         onContextMenu={(e) => handleServerContextMenu(e, server)}
-        title={sidebarCollapsed ? `${server.name}\n${server.host}:${server.port}\n\n单击选中 / 双击连接` : undefined}
+        title={sidebarCollapsed ? `${server.name}\n${server.host}:${server.port}\n\n单击选中 / 双击连接\nCtrl+点击多选` : undefined}
       >
         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
           isConnecting ? 'bg-accent-yellow animate-pulse-soft' :
@@ -348,20 +467,57 @@ const Sidebar: React.FC = () => {
     <>
       <div className={`${sidebarCollapsed ? 'w-10' : 'w-56'} bg-surface-400 border-r border-border/40 flex flex-col transition-all duration-200 flex-shrink-0`}>
         <div className="h-8 flex items-center justify-between px-2 border-b border-border/30 flex-shrink-0">
-          {!sidebarCollapsed && <span className="text-[10px] text-text-dim font-medium">服务器</span>}
-          <button
-            className="p-1 rounded text-text-dim hover:text-text transition-colors"
-            onClick={toggleSidebar}
-            title={sidebarCollapsed ? '展开' : '收起'}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              {sidebarCollapsed
-                ? <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                : <path strokeLinecap="round" strokeLinejoin="round" d="M11 19l-7-7 7-7M19 19l-7-7 7-7" />
-              }
-            </svg>
-          </button>
+          {!sidebarCollapsed && (
+            <span className="text-[10px] text-text-dim font-medium">
+              {selectedIds.size > 0 ? `已选 ${selectedIds.size} 项` : '服务器'}
+            </span>
+          )}
+          {selectedIds.size > 0 && !sidebarCollapsed && (
+            <button
+              className="text-[10px] text-primary-400 hover:text-primary-300 transition-colors"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              取消
+            </button>
+          )}
+          {selectedIds.size === 0 && (
+            <button
+              className="p-1 rounded text-text-dim hover:text-text transition-colors"
+              onClick={toggleSidebar}
+              title={sidebarCollapsed ? '展开' : '收起'}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                {sidebarCollapsed
+                  ? <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                  : <path strokeLinecap="round" strokeLinejoin="round" d="M11 19l-7-7 7-7M19 19l-7-7 7-7" />
+                }
+              </svg>
+            </button>
+          )}
         </div>
+
+        {!sidebarCollapsed && selectedIds.size > 0 && (
+          <div className="px-2 py-1 border-b border-border/30 flex-shrink-0 flex items-center gap-1">
+            <button
+              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-primary-400 hover:bg-primary-500/10 transition-colors"
+              onClick={handleBatchSetGroup}
+            >
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
+              </svg>
+              设置分组
+            </button>
+            <button
+              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-danger hover:bg-danger/10 transition-colors"
+              onClick={handleBatchDelete}
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+              删除
+            </button>
+          </div>
+        )}
 
         {!sidebarCollapsed && (
           <div className="px-2 py-1.5 border-b border-border/30 flex-shrink-0">
@@ -387,7 +543,10 @@ const Sidebar: React.FC = () => {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto py-1">
+        <div
+          className="flex-1 overflow-y-auto py-1"
+          onContextMenu={handleBackgroundContextMenu}
+        >
           {isSearching ? (
             filteredServers.map((server) => renderServerItem(server))
           ) : (
@@ -467,7 +626,7 @@ const Sidebar: React.FC = () => {
         {!sidebarCollapsed && (
           <div className="px-2 py-1 border-t border-border/30 flex-shrink-0">
             <div className="text-[10px] text-text-dim/40 text-center">
-              单击选中 · 双击连接 · 右键更多
+              {selectedIds.size > 0 ? 'Ctrl+点击多选 · 右键批量操作' : '单击选中 · 双击连接 · Ctrl多选 · 右键更多'}
             </div>
           </div>
         )}
