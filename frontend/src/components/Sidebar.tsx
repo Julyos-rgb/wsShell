@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useUIStore, useConnectionStore, useTerminalTabStore } from '../stores/ui'
 import { ServerConfig } from '../types'
 import { GetServers, DeleteServer } from '../../wailsjs/go/config/ConfigManager'
@@ -39,6 +39,7 @@ const Sidebar: React.FC = () => {
   const [connecting, setConnecting] = useState<string | null>(null)
   const [hostKeyState, setHostKeyState] = useState<HostKeyState>(defaultHostKeyState)
   const [searchQuery, setSearchQuery] = useState('')
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { show: showContextMenu, ContextMenuOverlay } = useContextMenu()
 
@@ -269,13 +270,79 @@ const Sidebar: React.FC = () => {
     showContextMenu(e, items)
   }, [connections, showContextMenu])
 
-  const filteredServers = searchQuery.trim()
-    ? servers.filter((s) =>
-        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.host.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.username.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : servers
+  const toggleGroup = useCallback((group: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(group)) next.delete(group)
+      else next.add(group)
+      return next
+    })
+  }, [])
+
+  const filteredServers = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return servers
+    return servers.filter((s) =>
+      s.name.toLowerCase().includes(q) ||
+      s.host.toLowerCase().includes(q) ||
+      s.username.toLowerCase().includes(q) ||
+      (s.group && s.group.toLowerCase().includes(q))
+    )
+  }, [servers, searchQuery])
+
+  const groupedServers = useMemo(() => {
+    const groups = new Map<string, ServerConfig[]>()
+    const ungrouped: ServerConfig[] = []
+
+    for (const server of filteredServers) {
+      if (server.group && server.group.trim()) {
+        const g = server.group.trim()
+        if (!groups.has(g)) groups.set(g, [])
+        groups.get(g)!.push(server)
+      } else {
+        ungrouped.push(server)
+      }
+    }
+
+    return { groups, ungrouped }
+  }, [filteredServers])
+
+  const isSearching = searchQuery.trim().length > 0
+
+  const renderServerItem = (server: ServerConfig) => {
+    const isConnected = server.id in connections
+    const isActive = activeServerId === server.id
+    const isConnecting = connecting === server.id
+
+    return (
+      <div
+        key={server.id}
+        className={`group flex items-center gap-2 px-2 py-1.5 mx-1 rounded cursor-pointer transition-colors ${
+          isActive ? 'bg-primary-500/15 text-primary-400' : 'hover:bg-surface-50/40 text-text-muted'
+        }`}
+        onClick={() => handleServerClick(server)}
+        onContextMenu={(e) => handleServerContextMenu(e, server)}
+        title={sidebarCollapsed ? `${server.name}\n${server.host}:${server.port}\n\n单击选中 / 双击连接` : undefined}
+      >
+        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+          isConnecting ? 'bg-accent-yellow animate-pulse-soft' :
+          isConnected ? 'bg-accent-green' : 'bg-text-dim'
+        }`} />
+
+        {!sidebarCollapsed && (
+          <>
+            <span className="truncate text-xs flex-1">{server.name}</span>
+            {isConnecting && <span className="text-[10px] text-accent-yellow">...</span>}
+            {!isConnecting && (
+              <span className="text-[10px] text-text-dim font-mono opacity-0 group-hover:opacity-100 transition-opacity">
+                {isConnected ? '●' : server.host}
+              </span>
+            )}
+          </>
+        )}
+      </div>
+    )
+  }
 
   return (
     <>
@@ -321,40 +388,64 @@ const Sidebar: React.FC = () => {
         )}
 
         <div className="flex-1 overflow-y-auto py-1">
-          {filteredServers.map((server) => {
-            const isConnected = server.id in connections
-            const isActive = activeServerId === server.id
-            const isConnecting = connecting === server.id
+          {isSearching ? (
+            filteredServers.map((server) => renderServerItem(server))
+          ) : (
+            <>
+              {Array.from(groupedServers.groups.entries()).map(([group, groupServers]) => {
+                const isCollapsed = collapsedGroups.has(group)
+                const hasActive = groupServers.some((s) => s.id === activeServerId)
+                const connectedCount = groupServers.filter((s) => s.id in connections).length
 
-            return (
-              <div
-                key={server.id}
-                className={`group flex items-center gap-2 px-2 py-1.5 mx-1 rounded cursor-pointer transition-colors ${
-                  isActive ? 'bg-primary-500/15 text-primary-300' : 'hover:bg-surface-50/40 text-text-muted'
-                }`}
-                onClick={() => handleServerClick(server)}
-                onContextMenu={(e) => handleServerContextMenu(e, server)}
-                title={sidebarCollapsed ? `${server.name}\n${server.host}:${server.port}\n\n单击选中 / 双击连接` : undefined}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                  isConnecting ? 'bg-accent-yellow animate-pulse-soft' :
-                  isConnected ? 'bg-accent-green' : 'bg-text-dim'
-                }`} />
-
-                {!sidebarCollapsed && (
-                  <>
-                    <span className="truncate text-xs flex-1">{server.name}</span>
-                    {isConnecting && <span className="text-[10px] text-accent-yellow">...</span>}
-                    {!isConnecting && (
-                      <span className="text-[10px] text-text-dim font-mono opacity-0 group-hover:opacity-100 transition-opacity">
-                        {isConnected ? '●' : server.host}
+                return (
+                  <div key={group}>
+                    <div
+                      className={`flex items-center gap-1.5 px-2 py-1 mx-1 rounded cursor-pointer transition-colors ${
+                        hasActive ? 'text-text' : 'text-text-muted'
+                      } hover:bg-surface-50/30`}
+                      onClick={() => toggleGroup(group)}
+                    >
+                      <svg className={`w-3 h-3 flex-shrink-0 transition-transform duration-150 ${isCollapsed ? '' : 'rotate-90'}`} fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+                      </svg>
+                      <svg className="w-3.5 h-3.5 text-accent-yellow flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
+                      </svg>
+                      <span className="truncate text-xs flex-1 font-medium">{group}</span>
+                      <span className="text-[9px] text-text-dim">
+                        {connectedCount > 0 ? `${connectedCount}/` : ''}{groupServers.length}
                       </span>
-                    )}
-                  </>
-                )}
-              </div>
-            )
-          })}
+                    </div>
+                    {!isCollapsed && groupServers.map((server) => (
+                      <div className="ml-2">{renderServerItem(server)}</div>
+                    ))}
+                  </div>
+                )
+              })}
+
+              {groupedServers.ungrouped.length > 0 && groupedServers.groups.size > 0 && (
+                <div className="mt-1">
+                  <div
+                    className="flex items-center gap-1.5 px-2 py-1 mx-1 rounded cursor-pointer transition-colors text-text-muted hover:bg-surface-50/30"
+                    onClick={() => toggleGroup('__ungrouped__')}
+                  >
+                    <svg className={`w-3 h-3 flex-shrink-0 transition-transform duration-150 ${collapsedGroups.has('__ungrouped__') ? '' : 'rotate-90'}`} fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z" />
+                    </svg>
+                    <span className="text-xs flex-1 font-medium text-text-dim">未分组</span>
+                    <span className="text-[9px] text-text-dim">{groupedServers.ungrouped.length}</span>
+                  </div>
+                  {!collapsedGroups.has('__ungrouped__') && groupedServers.ungrouped.map((server) => (
+                    <div className="ml-2">{renderServerItem(server)}</div>
+                  ))}
+                </div>
+              )}
+
+              {groupedServers.groups.size === 0 && groupedServers.ungrouped.length > 0 && (
+                groupedServers.ungrouped.map((server) => renderServerItem(server))
+              )}
+            </>
+          )}
 
           {filteredServers.length === 0 && !sidebarCollapsed && (
             <div className="text-center text-text-dim text-xs py-6">
@@ -382,7 +473,7 @@ const Sidebar: React.FC = () => {
         )}
 
         <button
-          className="h-8 border-t border-border/30 flex items-center justify-center text-primary-300 hover:bg-primary-500/10 transition-colors"
+          className="h-8 border-t border-border/30 flex items-center justify-center text-primary-400 hover:bg-primary-500/10 transition-colors"
           onClick={() => { setEditingServer(null); setShowAddServerDialog(true) }}
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
