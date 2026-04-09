@@ -166,20 +166,28 @@ function App() {
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <div className="flex-1 overflow-hidden">
-          {activeTab === 'terminal' && <Terminal />}
-          {activeTab === 'vnc' && <VncViewer />}
-          {activeTab === 'file' && <FileManager />}
-          {activeTab === 'monitor' && <MonitorPanel />}
-          {activeTab === 'network' && <NetworkMonitor />}
-          {activeTab === 'docker' && <DockerManager />}
-          {activeTab === 'tools' && (
-            <div className="flex flex-col h-full">
-              <div className="flex-1 overflow-hidden">
-                <NetworkTools />
-              </div>
-            </div>
-          )}
+        <div className="flex-1 overflow-hidden relative">
+          <div className="absolute inset-0" style={{ display: activeTab === 'terminal' ? 'flex' : 'none', flexDirection: 'column' }}>
+            <Terminal />
+          </div>
+          <div className="absolute inset-0" style={{ display: activeTab === 'vnc' ? 'flex' : 'none', flexDirection: 'column' }}>
+            <VncViewer />
+          </div>
+          <div className="absolute inset-0" style={{ display: activeTab === 'file' ? 'flex' : 'none', flexDirection: 'column' }}>
+            <FileManager />
+          </div>
+          <div className="absolute inset-0" style={{ display: activeTab === 'monitor' ? 'flex' : 'none', flexDirection: 'column' }}>
+            <MonitorPanel />
+          </div>
+          <div className="absolute inset-0" style={{ display: activeTab === 'network' ? 'flex' : 'none', flexDirection: 'column' }}>
+            <NetworkMonitor />
+          </div>
+          <div className="absolute inset-0" style={{ display: activeTab === 'docker' ? 'flex' : 'none', flexDirection: 'column' }}>
+            <DockerManager />
+          </div>
+          <div className="absolute inset-0" style={{ display: activeTab === 'tools' ? 'flex' : 'none', flexDirection: 'column' }}>
+            <NetworkTools />
+          </div>
         </div>
       </div>
 

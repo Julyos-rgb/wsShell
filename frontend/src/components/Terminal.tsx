@@ -36,13 +36,19 @@ interface TerminalInstanceProps {
   sessionId: string
   serverId: string
   active: boolean
+  appVisible: boolean
 }
 
-const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active }) => {
+const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active, appVisible }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const termRef = useRef<Terminal | null>(null)
   const fitRef = useRef<FitAddon | null>(null)
   const roRef = useRef<ResizeObserver | null>(null)
+  const activeRef = useRef(active)
+  const appVisibleRef = useRef(appVisible)
+
+  activeRef.current = active
+  appVisibleRef.current = appVisible
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -66,12 +72,15 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active }
     fitRef.current = fitAddon
 
     const ro = new ResizeObserver(() => {
+      if (!activeRef.current || !appVisibleRef.current) return
+      if (!containerRef.current || containerRef.current.offsetWidth === 0) return
       try { fitAddon.fit() } catch {}
     })
     ro.observe(containerRef.current)
     roRef.current = ro
 
     requestAnimationFrame(() => {
+      if (!containerRef.current || containerRef.current.offsetWidth === 0) return
       try { fitAddon.fit() } catch {}
     })
 
@@ -86,6 +95,7 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active }
     EventsOn(`ssh:${sessionId}:stderr`, handleStderr)
 
     requestAnimationFrame(() => {
+      if (!containerRef.current || containerRef.current.offsetWidth === 0) return
       try {
         fitAddon.fit()
         const { cols, rows } = term
@@ -104,19 +114,25 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active }
   }, [sessionId])
 
   useEffect(() => {
-    if (active && fitRef.current) {
-      requestAnimationFrame(() => {
-        try {
-          fitRef.current?.fit()
-          if (termRef.current) {
-            const { cols, rows } = termRef.current
-            ResizeTerminal({ sessionId, cols, rows })
-          }
-        } catch {}
-      })
-      termRef.current?.focus()
-    }
-  }, [active, sessionId])
+    const shouldActivate = active && appVisible
+    if (!shouldActivate) return
+    if (!fitRef.current || !termRef.current) return
+
+    const timer = setTimeout(() => {
+      try {
+        fitRef.current?.fit()
+        const term = termRef.current
+        if (term) {
+          const { cols, rows } = term
+          ResizeTerminal({ sessionId, cols, rows })
+          const buf = term.buffer.active
+          term.refresh(0, Math.max(0, buf.length - 1))
+          term.focus()
+        }
+      } catch {}
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [active, appVisible, sessionId])
 
   return (
     <div
@@ -128,12 +144,13 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active }
 }
 
 const XTerminal: React.FC = () => {
-  const { activeServerId } = useUIStore()
+  const { activeServerId, activeTab } = useUIStore()
   const { connections } = useConnectionStore()
   const {
     terminalTabs, activeTerminalTabId,
     setActiveTerminalTab, removeTerminalTab, addTerminalTab,
   } = useTerminalTabStore()
+  const appVisible = activeTab === 'terminal'
 
   const handleNewShell = async () => {
     if (!activeServerId) return
@@ -218,6 +235,7 @@ const XTerminal: React.FC = () => {
                 sessionId={sid}
                 serverId={tab.serverId}
                 active={tab.id === activeTerminalTabId}
+                appVisible={appVisible}
               />
             )
           })
