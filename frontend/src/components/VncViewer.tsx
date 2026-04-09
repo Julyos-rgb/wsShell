@@ -6,10 +6,12 @@ import {
   StopProxy,
 } from '../../wailsjs/go/vnc/Proxy'
 import { vnc } from '../../wailsjs/go/models'
+import { useDialog } from './Dialog'
 
 const VncViewer: React.FC = () => {
   const { connections, servers } = useConnectionStore()
   const activeServerId = useUIStore((s) => s.activeServerId)
+  const { prompt: dialogPrompt } = useDialog()
   const containerRef = useRef<HTMLDivElement>(null)
   const rfbRef = useRef<RFB | null>(null)
   const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle')
@@ -97,8 +99,13 @@ const VncViewer: React.FC = () => {
             setErrorMsg('VNC 连接已断开')
           }
         })
-        rfb.addEventListener('credentialsrequired', () => {
-          const pwd = prompt('VNC 服务器要求输入密码:')
+        rfb.addEventListener('credentialsrequired', async () => {
+          const pwd = await dialogPrompt({
+            title: 'VNC 认证',
+            message: 'VNC 服务器要求输入密码：',
+            placeholder: 'VNC 密码',
+            confirmText: '连接',
+          })
           if (pwd) {
             rfb.sendCredentials({ password: pwd })
           } else {
@@ -114,7 +121,7 @@ const VncViewer: React.FC = () => {
       setStatus('error')
       setErrorMsg(e.toString())
     }
-  }, [activeServer, vncPassword, connection, cleanup])
+  }, [activeServer, vncPassword, connection, cleanup, dialogPrompt])
 
   const handleFullscreen = useCallback(() => {
     setFullscreen((prev) => !prev)

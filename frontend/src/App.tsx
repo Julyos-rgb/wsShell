@@ -9,6 +9,7 @@ import DockerManager from './components/DockerManager'
 import NetworkMonitor from './components/NetworkMonitor'
 import NetworkTools from './components/NetworkTools'
 import CommandPalette, { usePaletteStore } from './components/CommandPalette'
+import { DialogProvider } from './components/Dialog'
 import { useUIStore, useConnectionStore, useTerminalTabStore } from './stores/ui'
 import { useEffect, useRef } from 'react'
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
@@ -145,6 +146,7 @@ function App() {
   }, [togglePalette])
 
   return (
+    <DialogProvider>
     <div className="flex flex-col h-screen w-screen bg-surface-400 text-text overflow-hidden">
       <div className="h-9 bg-surface-400 flex items-center px-3 flex-shrink-0 border-b border-border/40">
         <div className="flex items-center gap-1.5">
@@ -195,6 +197,7 @@ function App() {
       <AddServerDialog />
       <CommandPalette />
     </div>
+    </DialogProvider>
   )
 }
 

@@ -6,6 +6,7 @@ import {
   DockerAction,
   GetDockerLogs,
 } from '../../wailsjs/go/monitor/MonitorService'
+import { useDialog } from './Dialog'
 
 interface DockerContainer {
   id: string
@@ -57,6 +58,7 @@ const RemoveIcon = () => <ActionIcon d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.8
 const DockerManager: React.FC = () => {
   const activeServerId = useUIStore((s) => s.activeServerId)
   const { connections } = useConnectionStore()
+  const { confirm } = useDialog()
 
   const [containers, setContainers] = useState<DockerContainer[]>([])
   const [stats, setStats] = useState<Record<string, ContainerStats>>({})
@@ -347,8 +349,14 @@ const DockerManager: React.FC = () => {
                           <button
                             className="p-1 rounded hover:bg-danger/15 text-text-dim hover:text-danger transition-colors disabled:opacity-30"
                             disabled={isActing}
-                            onClick={() => {
-                              if (window.confirm(`确定删除容器 ${c.name}？`)) {
+                            onClick={async () => {
+                              const ok = await confirm({
+                                title: '删除容器',
+                                message: `确定删除容器 ${c.name} 吗？`,
+                                confirmText: '删除',
+                                danger: true,
+                              })
+                              if (ok) {
                                 handleAction(c.name, 'remove')
                               }
                             }}
