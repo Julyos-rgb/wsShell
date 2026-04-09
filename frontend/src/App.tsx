@@ -149,11 +149,7 @@ function App() {
     <DialogProvider>
     <div className="flex flex-col h-screen w-screen bg-surface-400 text-text overflow-hidden">
       <div className="h-9 bg-surface-400 flex items-center px-3 flex-shrink-0 border-b border-border/40">
-        <div className="flex items-center gap-2">
-          <img src="/icon.png" alt="wsShell" className="w-4 h-4 rounded" />
-          <span className="text-xs text-text-dim font-medium">wsShell</span>
-        </div>
-        <div className="ml-4 flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5">
           {tabs.map((tab) => (
             <button
               key={tab.id}
