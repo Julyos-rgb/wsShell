@@ -10,6 +10,7 @@ interface DialogItem {
   cancelText?: string
   placeholder?: string
   defaultValue?: string
+  suggestions?: string[]
   resolve: (value: string | boolean | null) => void
 }
 
@@ -117,14 +118,34 @@ function DialogOverlay({ dialog, onResolve }: {
             <div className="text-xs text-text-muted">{dialog.message}</div>
           )}
           {dialog.type === 'prompt' && (
-            <input
-              ref={inputRef}
-              className="input-field text-xs"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder={dialog.placeholder || ''}
-              autoFocus
-            />
+            <>
+              <input
+                ref={inputRef}
+                className="input-field text-xs"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={dialog.placeholder || ''}
+                autoFocus
+              />
+              {dialog.suggestions && dialog.suggestions.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {dialog.suggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={`px-2 py-0.5 rounded text-[11px] transition-colors ${
+                        inputValue === s
+                          ? 'bg-primary-500/25 text-primary-400 ring-1 ring-primary-400/40'
+                          : 'bg-surface-500/60 text-text-muted hover:bg-surface-50/30 hover:text-text'
+                      }`}
+                      onClick={() => setInputValue(s)}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
 

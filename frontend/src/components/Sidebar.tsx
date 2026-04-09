@@ -208,12 +208,12 @@ const Sidebar: React.FC = () => {
   const handleBatchSetGroup = useCallback(async () => {
     if (selectedIds.size === 0) return
     const existingGroups = [...new Set(servers.map(s => s.group).filter(Boolean))]
-    const hint = existingGroups.length > 0 ? `已有分组：${existingGroups.join('、')}` : ''
     const groupName = await dialogPrompt({
       title: `批量设置分组（${selectedIds.size} 台服务器）`,
-      message: hint || undefined,
-      placeholder: '输入分组名称',
+      message: existingGroups.length > 0 ? '选择已有分组或输入新名称' : undefined,
+      placeholder: '输入新分组名称',
       confirmText: '设置',
+      suggestions: existingGroups,
     })
     if (groupName === null) return
 
@@ -314,13 +314,13 @@ const Sidebar: React.FC = () => {
         ),
         onClick: async () => {
           const existingGroups = [...new Set(servers.map(s => s.group).filter(Boolean))]
-          const hint = existingGroups.length > 0 ? `已有分组：${existingGroups.join('、')}` : ''
           const groupName = await dialogPrompt({
             title: '设置分组',
-            message: hint || undefined,
+            message: existingGroups.length > 0 ? '选择已有分组或输入新名称' : undefined,
             defaultValue: server.group || '',
             placeholder: '分组名称（留空则取消分组）',
             confirmText: '设置',
+            suggestions: existingGroups,
           })
           if (groupName === null) return
           await UpdateServer({ server: { ...server, group: groupName } } as any)
