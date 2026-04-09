@@ -273,6 +273,12 @@ const Sidebar: React.FC = () => {
       clickTimerRef.current = setTimeout(() => {
         clickTimerRef.current = null
         setActiveServerId(server.id)
+        if (server.id in connections) {
+          setActiveTab('terminal')
+          const tabs = useTerminalTabStore.getState().terminalTabs
+          const serverTab = tabs.find(t => t.serverId === server.id)
+          if (serverTab) useTerminalTabStore.getState().setActiveTerminalTab(serverTab.id)
+        }
       }, 250)
     }
   }, [connections, activeServerId, selectedIds])

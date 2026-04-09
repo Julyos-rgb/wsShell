@@ -1,8 +1,11 @@
 import { create } from 'zustand'
 import { ServerConfig, ConnectionInfo, TransferTask, TerminalTab } from '../types'
 
+type MainTab = 'terminal' | 'vnc'
+type ToolTab = 'monitor' | 'network' | 'docker' | 'tools'
+
 interface UIState {
-  activeTab: 'terminal' | 'vnc' | 'file' | 'monitor' | 'network' | 'docker' | 'tools'
+  activeTab: MainTab
   activeServerId: string | null
   sidebarCollapsed: boolean
   theme: 'dark' | 'light'
@@ -11,8 +14,10 @@ interface UIState {
   statusMessage: string
   latency: number
   transferRate: string
+  filePanelOpen: boolean
+  activeToolTab: ToolTab | null
 
-  setActiveTab: (tab: 'terminal' | 'vnc' | 'file' | 'monitor' | 'network' | 'docker' | 'tools') => void
+  setActiveTab: (tab: MainTab) => void
   setActiveServerId: (serverId: string | null) => void
   toggleSidebar: () => void
   setTheme: (theme: 'dark' | 'light') => void
@@ -21,6 +26,9 @@ interface UIState {
   setStatusMessage: (msg: string) => void
   setLatency: (ms: number) => void
   setTransferRate: (rate: string) => void
+  setFilePanelOpen: (open: boolean) => void
+  toggleFilePanel: () => void
+  setActiveToolTab: (tab: ToolTab | null) => void
 }
 
 interface TerminalTabState {
@@ -44,6 +52,8 @@ export const useUIStore = create<UIState>((set) => ({
   statusMessage: '未连接',
   latency: 0,
   transferRate: '0 KB/s',
+  filePanelOpen: false,
+  activeToolTab: null,
 
   setActiveTab: (tab) => set({ activeTab: tab }),
   setActiveServerId: (serverId) => set({ activeServerId: serverId }),
@@ -58,6 +68,9 @@ export const useUIStore = create<UIState>((set) => ({
   setStatusMessage: (msg) => set({ statusMessage: msg }),
   setLatency: (ms) => set({ latency: ms }),
   setTransferRate: (rate) => set({ transferRate: rate }),
+  setFilePanelOpen: (open) => set({ filePanelOpen: open }),
+  toggleFilePanel: () => set((state) => ({ filePanelOpen: !state.filePanelOpen })),
+  setActiveToolTab: (tab) => set((state) => ({ activeToolTab: state.activeToolTab === tab ? null : tab })),
 }))
 
 interface ConnectionState {

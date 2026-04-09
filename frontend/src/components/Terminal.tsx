@@ -6,6 +6,7 @@ import { useUIStore, useConnectionStore, useTerminalTabStore } from '../stores/u
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
 import { WriteToSession, ResizeTerminal, CreateShell } from '../../wailsjs/go/ssh/SSHService'
 import AutocompletePopup from './AutocompletePopup'
+import { useDialog } from './Dialog'
 
 const xtermTheme = {
   background: '#11111b',
@@ -224,21 +225,44 @@ const XTerminal: React.FC = () => {
     terminalTabs, activeTerminalTabId,
     setActiveTerminalTab, removeTerminalTab, addTerminalTab,
   } = useTerminalTabStore()
+  const { prompt: dialogPrompt } = useDialog()
   const appVisible = activeTab === 'terminal'
 
   const handleNewShell = async () => {
-    if (!activeServerId) return
-    const conn = connections[activeServerId]
+    const connEntries = Object.entries(connections)
+    if (connEntries.length === 0) return
+
+    let targetServerId = activeServerId
+
+    if (!targetServerId || !connections[targetServerId]) {
+      if (connEntries.length === 1) {
+        targetServerId = connEntries[0][0]
+      } else {
+        const serverNames = connEntries.map(([_id, c]) => c.serverName)
+        const choice = await dialogPrompt({
+          title: '新建终端',
+          message: '选择要在哪台服务器上新建终端',
+          suggestions: serverNames,
+          confirmText: '新建',
+        })
+        if (choice === null) return
+        const entry = connEntries.find(([_id, c]) => c.serverName === choice)
+        if (!entry) return
+        targetServerId = entry[0]
+      }
+    }
+
+    const conn = connections[targetServerId]
     if (!conn) return
 
     try {
       const resp = await CreateShell({ baseSessionId: conn.sessionId })
       if (resp.success && resp.sessionId) {
         addTerminalTab({
-          id: `${activeServerId}-${resp.sessionId}`,
-          serverId: activeServerId,
+          id: `${targetServerId}-${resp.sessionId}`,
+          serverId: targetServerId,
           sessionId: resp.sessionId,
-          label: `Shell ${terminalTabs.filter(t => t.serverId === activeServerId).length + 1}`,
+          label: `Shell ${terminalTabs.filter(t => t.serverId === targetServerId).length + 1}`,
           serverName: conn.serverName,
           connected: true,
         })
