@@ -123,9 +123,9 @@ type GetConnectionsRequest struct {
 }
 
 type GetConnectionsResponse struct {
-	Success     bool           `json:"success"`
+	Success     bool            `json:"success"`
 	Connections []NetConnection `json:"connections,omitempty"`
-	Error       string         `json:"error,omitempty"`
+	Error       string          `json:"error,omitempty"`
 }
 
 func (n *NetworkService) GetConnections(req GetConnectionsRequest) (GetConnectionsResponse, error) {
@@ -199,11 +199,11 @@ type PingResponse struct {
 }
 
 type PingStat struct {
-	Min    float64 `json:"min"`
-	Avg    float64 `json:"avg"`
-	Max    float64 `json:"max"`
-	Lost   float64 `json:"lost"`
-	Count  int     `json:"count"`
+	Min   float64 `json:"min"`
+	Avg   float64 `json:"avg"`
+	Max   float64 `json:"max"`
+	Lost  float64 `json:"lost"`
+	Count int     `json:"count"`
 }
 
 func (n *NetworkService) Ping(req PingRequest) (PingResponse, error) {

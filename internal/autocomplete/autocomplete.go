@@ -74,9 +74,9 @@ type CompleteRequest struct {
 }
 
 type CompleteResponse struct {
-	Success    bool       `json:"success"`
+	Success     bool         `json:"success"`
 	Suggestions []Suggestion `json:"suggestions,omitempty"`
-	Error      string     `json:"error,omitempty"`
+	Error       string       `json:"error,omitempty"`
 }
 
 type Suggestion struct {

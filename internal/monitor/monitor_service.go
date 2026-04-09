@@ -40,10 +40,10 @@ type SystemInfo struct {
 }
 
 type ResourceUsage struct {
-	CPUPercent float64 `json:"cpuPercent"`
-	MemPercent float64 `json:"memPercent"`
-	MemUsedMB  int64   `json:"memUsedMB"`
-	MemTotalMB int64   `json:"memTotalMB"`
+	CPUPercent  float64 `json:"cpuPercent"`
+	MemPercent  float64 `json:"memPercent"`
+	MemUsedMB   int64   `json:"memUsedMB"`
+	MemTotalMB  int64   `json:"memTotalMB"`
 	DiskPercent float64 `json:"diskPercent"`
 	DiskUsedGB  float64 `json:"diskUsedGB"`
 	DiskTotalGB float64 `json:"diskTotalGB"`
@@ -63,17 +63,17 @@ type ProcessInfo struct {
 }
 
 type DockerContainer struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Image     string `json:"image"`
-	Status    string `json:"status"`
-	Ports     string `json:"ports"`
-	State     string `json:"state"`
-	CPUPct    string `json:"cpuPct"`
-	MemUsage  string `json:"memUsage"`
-	MemPct    string `json:"memPct"`
-	NetIO     string `json:"netIO"`
-	BlockIO   string `json:"blockIO"`
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Image    string `json:"image"`
+	Status   string `json:"status"`
+	Ports    string `json:"ports"`
+	State    string `json:"state"`
+	CPUPct   string `json:"cpuPct"`
+	MemUsage string `json:"memUsage"`
+	MemPct   string `json:"memPct"`
+	NetIO    string `json:"netIO"`
+	BlockIO  string `json:"blockIO"`
 }
 
 type StartMonitorRequest struct {
@@ -111,37 +111,68 @@ func (m *MonitorService) execCommand(sessionID string, cmd string) (string, erro
 	return strings.TrimSpace(string(out)), err
 }
 
+func (m *MonitorService) execScript(sessionID string, script string) (string, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return "", fmt.Errorf("SSH connection not found")
+	}
+
+	session, err := client.NewSession()
+	if err != nil {
+		return "", err
+	}
+	defer session.Close()
+
+	out, err := session.CombinedOutput(script)
+	return strings.TrimSpace(string(out)), err
+}
+
 func (m *MonitorService) GetSystemInfo(sessionID string) (SystemInfo, error) {
 	var info SystemInfo
 
-	if out, err := m.execCommand(sessionID, "hostname"); err == nil {
-		info.Hostname = out
+	script := `echo "HOSTNAME:$(hostname)"
+echo "ARCH:$(uname -m)"
+echo "KERNEL:$(uname -r)"
+echo "OS:$(cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d'"'"' -f2)"
+echo "UPTIME:$(uptime -p 2>/dev/null || uptime | awk -F'up ' '{print $2}' | awk -F',' '{print $1}')"
+echo "CPUCORES:$(nproc)"
+echo "CPUMODEL:$(cat /proc/cpuinfo | grep 'model name' | head -1 | cut -d':' -f2 | xargs)"
+echo "MEMTOTAL:$(grep MemTotal /proc/meminfo | awk '{print $2}')"
+echo "USERS:$(who | wc -l)"`
+
+	out, err := m.execScript(sessionID, script)
+	if err != nil {
+		return info, err
 	}
-	if out, err := m.execCommand(sessionID, "uname -m"); err == nil {
-		info.Arch = out
-	}
-	if out, err := m.execCommand(sessionID, "uname -r"); err == nil {
-		info.Kernel = out
-	}
-	if out, err := m.execCommand(sessionID, "cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d'\"' -f2"); err == nil {
-		info.OS = out
-	}
-	if out, err := m.execCommand(sessionID, "uptime -p 2>/dev/null || uptime | awk -F'up ' '{print $2}' | awk -F',' '{print $1}'"); err == nil {
-		info.Uptime = strings.Replace(out, "up ", "", 1)
-	}
-	if out, err := m.execCommand(sessionID, "nproc"); err == nil {
-		info.CPUCores, _ = strconv.Atoi(out)
-	}
-	if out, err := m.execCommand(sessionID, "cat /proc/cpuinfo | grep 'model name' | head -1 | cut -d':' -f2"); err == nil {
-		info.CPUModel = strings.TrimSpace(out)
-	}
-	if out, err := m.execCommand(sessionID, "grep MemTotal /proc/meminfo | awk '{print $2}'"); err == nil {
-		v, _ := strconv.ParseInt(out, 10, 64)
-		info.TotalMemMB = v / 1024
-	}
-	if out, err := m.execCommand(sessionID, "who | wc -l"); err == nil {
-		v, _ := strconv.Atoi(out)
-		info.Users = v
+
+	lines := strings.Split(out, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if idx := strings.Index(line, ":"); idx > 0 {
+			key := line[:idx]
+			val := line[idx+1:]
+			switch key {
+			case "HOSTNAME":
+				info.Hostname = val
+			case "ARCH":
+				info.Arch = val
+			case "KERNEL":
+				info.Kernel = val
+			case "OS":
+				info.OS = val
+			case "UPTIME":
+				info.Uptime = strings.Replace(val, "up ", "", 1)
+			case "CPUCORES":
+				info.CPUCores, _ = strconv.Atoi(val)
+			case "CPUMODEL":
+				info.CPUModel = val
+			case "MEMTOTAL":
+				v, _ := strconv.ParseInt(val, 10, 64)
+				info.TotalMemMB = v / 1024
+			case "USERS":
+				info.Users, _ = strconv.Atoi(val)
+			}
+		}
 	}
 
 	return info, nil
@@ -150,33 +181,49 @@ func (m *MonitorService) GetSystemInfo(sessionID string) (SystemInfo, error) {
 func (m *MonitorService) GetResourceUsage(sessionID string) (ResourceUsage, error) {
 	var usage ResourceUsage
 
-	if out, err := m.execCommand(sessionID, "top -bn1 | grep 'Cpu(s)' | awk '{print $2}'"); err == nil {
-		usage.CPUPercent, _ = strconv.ParseFloat(out, 64)
+	script := `echo "CPU:$(top -bn1 | grep 'Cpu(s)' | awk '{print $2}')"
+echo "MEM:$(free -m | grep Mem)"
+echo "DISK:$(df -h / | tail -1 | awk '{print $3,$4,$5}')"
+echo "LOAD:$(cat /proc/loadavg)"`
+
+	out, err := m.execScript(sessionID, script)
+	if err != nil {
+		return usage, err
 	}
-	if out, err := m.execCommand(sessionID, "free -m | grep Mem"); err == nil {
-		fields := strings.Fields(out)
-		if len(fields) >= 3 {
-			usage.MemTotalMB, _ = strconv.ParseInt(fields[1], 10, 64)
-			usage.MemUsedMB, _ = strconv.ParseInt(fields[2], 10, 64)
-			if usage.MemTotalMB > 0 {
-				usage.MemPercent = float64(usage.MemUsedMB) / float64(usage.MemTotalMB) * 100
+
+	lines := strings.Split(out, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if idx := strings.Index(line, ":"); idx > 0 {
+			key := line[:idx]
+			val := strings.TrimSpace(line[idx+1:])
+			switch key {
+			case "CPU":
+				usage.CPUPercent, _ = strconv.ParseFloat(val, 64)
+			case "MEM":
+				fields := strings.Fields(val)
+				if len(fields) >= 3 {
+					usage.MemTotalMB, _ = strconv.ParseInt(fields[1], 10, 64)
+					usage.MemUsedMB, _ = strconv.ParseInt(fields[2], 10, 64)
+					if usage.MemTotalMB > 0 {
+						usage.MemPercent = float64(usage.MemUsedMB) / float64(usage.MemTotalMB) * 100
+					}
+				}
+			case "DISK":
+				fields := strings.Fields(val)
+				if len(fields) >= 3 {
+					usage.DiskUsedGB, _ = strconv.ParseFloat(strings.TrimSuffix(fields[0], "G"), 64)
+					usage.DiskTotalGB, _ = strconv.ParseFloat(strings.TrimSuffix(fields[1], "G"), 64)
+					usage.DiskPercent, _ = strconv.ParseFloat(strings.TrimSuffix(fields[2], "%"), 64)
+				}
+			case "LOAD":
+				fields := strings.Fields(val)
+				if len(fields) >= 3 {
+					usage.Load1, _ = strconv.ParseFloat(fields[0], 64)
+					usage.Load5, _ = strconv.ParseFloat(fields[1], 64)
+					usage.Load15, _ = strconv.ParseFloat(fields[2], 64)
+				}
 			}
-		}
-	}
-	if out, err := m.execCommand(sessionID, "df -h / | tail -1 | awk '{print $3,$4,$5}'"); err == nil {
-		fields := strings.Fields(out)
-		if len(fields) >= 3 {
-			usage.DiskUsedGB, _ = strconv.ParseFloat(strings.TrimSuffix(fields[0], "G"), 64)
-			usage.DiskTotalGB, _ = strconv.ParseFloat(strings.TrimSuffix(fields[1], "G"), 64)
-			usage.DiskPercent, _ = strconv.ParseFloat(strings.TrimSuffix(fields[2], "%"), 64)
-		}
-	}
-	if out, err := m.execCommand(sessionID, "cat /proc/loadavg"); err == nil {
-		fields := strings.Fields(out)
-		if len(fields) >= 3 {
-			usage.Load1, _ = strconv.ParseFloat(fields[0], 64)
-			usage.Load5, _ = strconv.ParseFloat(fields[1], 64)
-			usage.Load15, _ = strconv.ParseFloat(fields[2], 64)
 		}
 	}
 

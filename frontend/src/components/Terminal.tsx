@@ -1,10 +1,11 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 import { useUIStore, useConnectionStore, useTerminalTabStore } from '../stores/ui'
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
 import { WriteToSession, ResizeTerminal, CreateShell } from '../../wailsjs/go/ssh/SSHService'
+import AutocompletePopup from './AutocompletePopup'
 
 const xtermTheme = {
   background: '#11111b',
@@ -46,9 +47,38 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active, 
   const roRef = useRef<ResizeObserver | null>(null)
   const activeRef = useRef(active)
   const appVisibleRef = useRef(appVisible)
+  const currentLineRef = useRef('')
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [showAC, setShowAC] = useState(false)
+  const [acPrefix, setAcPrefix] = useState('')
+  const [acPosition, setAcPosition] = useState({ top: 0, left: 0 })
 
   activeRef.current = active
   appVisibleRef.current = appVisible
+
+  const triggerAutocomplete = useCallback((term: Terminal) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      const buf = term.buffer.active
+      const line = buf.getLine(buf.cursorY)
+      if (!line) { setShowAC(false); return }
+      const lineText = line.translateToString(true, 0, buf.cursorX)
+      const trimmed = lineText.trimStart()
+      const firstWord = trimmed.split(/\s+/)[0] || ''
+      if (firstWord.length < 2) { setShowAC(false); return }
+      setAcPrefix(firstWord)
+      setShowAC(true)
+      const rect = containerRef.current?.getBoundingClientRect()
+      if (rect) {
+        const charWidth = term.cols > 0 ? rect.width / term.cols : 8
+        const charHeight = term.rows > 0 ? rect.height / term.rows : 16
+        setAcPosition({
+          top: rect.top + (buf.cursorY + 1) * charHeight,
+          left: rect.left + buf.cursorX * charWidth,
+        })
+      }
+    }, 150)
+  }, [])
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -86,6 +116,21 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active, 
 
     term.onData((data: string) => {
       WriteToSession({ sessionId, data })
+      if (data === '\r' || data === '\n') {
+        currentLineRef.current = ''
+        setShowAC(false)
+      } else if (data === '\x7f' || data === '\b') {
+        currentLineRef.current = currentLineRef.current.slice(0, -1)
+        triggerAutocomplete(term)
+      } else if (data === '\t') {
+        setShowAC(false)
+      } else if (data === '\x03') {
+        currentLineRef.current = ''
+        setShowAC(false)
+      } else if ((data.length === 1 && data >= ' ') || data.length > 1) {
+        currentLineRef.current += data
+        triggerAutocomplete(term)
+      }
     })
 
     const handleStdout = (d: string) => { term.write(d) }
@@ -110,6 +155,7 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active, 
       term.dispose()
       termRef.current = null
       fitRef.current = null
+      if (debounceRef.current) clearTimeout(debounceRef.current)
     }
   }, [sessionId])
 
@@ -134,12 +180,40 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active, 
     return () => clearTimeout(timer)
   }, [active, appVisible, sessionId])
 
+  const handleAcSelect = useCallback((command: string) => {
+    const term = termRef.current
+    if (!term) return
+    const prefix = acPrefix
+    const remaining = command.slice(prefix.length)
+    if (remaining) {
+      WriteToSession({ sessionId, data: remaining })
+      currentLineRef.current += remaining
+    }
+    setShowAC(false)
+    term.focus()
+  }, [sessionId, acPrefix])
+
+  const handleAcClose = useCallback(() => {
+    setShowAC(false)
+  }, [])
+
   return (
     <div
       ref={containerRef}
       className="h-full w-full p-1 bg-[#11111b]"
       style={{ display: active ? 'block' : 'none' }}
-    />
+    >
+      {showAC && (
+        <AutocompletePopup
+          sessionId={sessionId}
+          visible={showAC}
+          prefix={acPrefix}
+          position={acPosition}
+          onSelect={handleAcSelect}
+          onClose={handleAcClose}
+        />
+      )}
+    </div>
   )
 }
 
