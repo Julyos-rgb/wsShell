@@ -46,11 +46,6 @@ function getCommands(): Command[] {
   return [
     { id: 'tab-terminal', label: '切换到终端', shortcut: 'Ctrl+1', category: '导航', execute: () => useUIStore.getState().setActiveTab('terminal') },
     { id: 'tab-vnc', label: '切换到VNC', shortcut: 'Ctrl+2', category: '导航', execute: () => useUIStore.getState().setActiveTab('vnc') },
-    { id: 'tab-file', label: '切换文件面板', shortcut: 'Ctrl+E', category: '导航', execute: () => useUIStore.getState().toggleFilePanel() },
-    { id: 'tab-monitor', label: '打开监控面板', category: '工具', execute: () => useUIStore.getState().setActiveToolTab('monitor') },
-    { id: 'tab-network', label: '打开网络面板', category: '工具', execute: () => useUIStore.getState().setActiveToolTab('network') },
-    { id: 'tab-docker', label: '打开Docker面板', category: '工具', execute: () => useUIStore.getState().setActiveToolTab('docker') },
-    { id: 'tab-tools', label: '打开网络工具', category: '工具', execute: () => useUIStore.getState().setActiveToolTab('tools') },
     { id: 'new-shell', label: '新建Shell', shortcut: 'Ctrl+T', category: '操作', execute: () => {} },
     { id: 'toggle-sidebar', label: '切换侧边栏', shortcut: 'Ctrl+B', category: '视图', execute: () => useUIStore.getState().toggleSidebar() },
     { id: 'add-server', label: '添加服务器', shortcut: 'Ctrl+N', category: '操作', execute: () => useUIStore.getState().setShowAddServerDialog(true) },
