@@ -201,7 +201,7 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active, 
   return (
     <div
       ref={containerRef}
-      className="h-full w-full p-1 bg-[#11111b]"
+      className="absolute inset-0 p-1 bg-[#11111b]"
       style={{ display: active ? 'block' : 'none' }}
     >
       {showAC && (
@@ -277,20 +277,20 @@ const XTerminal: React.FC = () => {
     : false
 
   return (
-    <div className="flex flex-col h-full">
-      {terminalTabs.length > 1 && (
-        <div className="flex items-center bg-surface-400 border-b border-border/40 px-1 flex-shrink-0">
-          {terminalTabs.map((tab) => (
-            <div
-              key={tab.id}
-              className={`group flex items-center gap-1.5 px-3 py-1.5 text-xs cursor-pointer border-b-2 transition-all ${
-                tab.id === activeTerminalTabId
-                  ? 'text-primary-300 border-primary-400 bg-surface-300/50'
-                  : 'text-text-dim border-transparent hover:text-text-muted hover:bg-surface-50/30'
-              }`}
-              onClick={() => setActiveTerminalTab(tab.id)}
-            >
-              <span className="truncate max-w-[120px]">{tab.label}</span>
+    <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex items-center bg-surface-400 border-b border-border/40 px-1 flex-shrink-0">
+        {terminalTabs.map((tab) => (
+          <div
+            key={tab.id}
+            className={`group flex items-center gap-1.5 px-3 py-1.5 text-xs cursor-pointer border-b-2 transition-all ${
+              tab.id === activeTerminalTabId
+                ? 'text-primary-300 border-primary-400 bg-surface-300/50'
+                : 'text-text-dim border-transparent hover:text-text-muted hover:bg-surface-50/30'
+            }`}
+            onClick={() => setActiveTerminalTab(tab.id)}
+          >
+            <span className="truncate max-w-[120px]">{tab.label}</span>
+            {terminalTabs.length > 1 && (
               <button
                 className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-danger transition-all ml-1"
                 onClick={(e) => { e.stopPropagation(); removeTerminalTab(tab.id) }}
@@ -299,23 +299,23 @@ const XTerminal: React.FC = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
-            </div>
-          ))}
-          <button
-            className="px-2 py-1 text-text-dim hover:text-primary-300 transition-colors"
-            onClick={handleNewShell}
-            title="新建 Shell"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-        </div>
-      )}
+            )}
+          </div>
+        ))}
+        <button
+          className="px-2 py-1 text-text-dim hover:text-primary-300 transition-colors"
+          onClick={handleNewShell}
+          title="新建 Shell"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
 
-      <div className="flex-1 relative">
+      <div className="flex-1 min-h-0 relative">
         {!hasActiveConnection ? (
-          <div className="flex items-center justify-center h-full text-text-dim">
+          <div className="absolute inset-0 flex items-center justify-center text-text-dim">
             <div className="text-center">
               <div className="text-sm">点击左侧服务器开始连接</div>
               <div className="text-xs text-text-dim/50 mt-1">Ctrl+1~7 切换标签 / Ctrl+B 侧边栏 / Ctrl+Shift+P 命令面板</div>

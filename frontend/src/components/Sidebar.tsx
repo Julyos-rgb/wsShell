@@ -25,7 +25,6 @@ const defaultHostKeyState: HostKeyState = {
 const Sidebar: React.FC = () => {
   const {
     activeServerId, setActiveServerId,
-    sidebarCollapsed, toggleSidebar,
     setShowAddServerDialog, setEditingServer,
     setStatusMessage, setActiveTab,
   } = useUIStore()
@@ -447,23 +446,19 @@ const Sidebar: React.FC = () => {
         }`}
         onClick={(e) => handleServerClick(e, server)}
         onContextMenu={(e) => handleServerContextMenu(e, server)}
-        title={sidebarCollapsed ? `${server.name}\n${server.host}:${server.port}\n\n单击选中 / 双击连接\nCtrl+点击多选` : undefined}
+        title={`${server.name}\n${server.host}:${server.port}`}
       >
         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
           isConnecting ? 'bg-accent-yellow animate-pulse-soft' :
           isConnected ? 'bg-accent-green' : 'bg-text-dim'
         }`} />
 
-        {!sidebarCollapsed && (
-          <>
-            <span className="truncate text-xs flex-1">{server.name}</span>
-            {isConnecting && <span className="text-[10px] text-accent-yellow">...</span>}
-            {!isConnecting && (
-              <span className="text-[10px] text-text-dim font-mono opacity-0 group-hover:opacity-100 transition-opacity">
-                {isConnected ? '●' : server.host}
-              </span>
-            )}
-          </>
+        <span className="truncate text-xs flex-1">{server.name}</span>
+        {isConnecting && <span className="text-[10px] text-accent-yellow">...</span>}
+        {!isConnecting && (
+          <span className="text-[10px] text-text-dim font-mono opacity-0 group-hover:opacity-100 transition-opacity">
+            {isConnected ? '●' : server.host}
+          </span>
         )}
       </div>
     )
@@ -471,38 +466,22 @@ const Sidebar: React.FC = () => {
 
   return (
     <>
-      <div className={`${sidebarCollapsed ? 'w-10' : 'w-56'} bg-surface-400 border-r border-border/40 flex flex-col transition-all duration-200 flex-shrink-0`}>
-        <div className="h-8 flex items-center justify-between px-2 border-b border-border/30 flex-shrink-0">
-          {!sidebarCollapsed && (
-            <span className="text-[10px] text-text-dim font-medium">
-              {selectedIds.size > 0 ? `已选 ${selectedIds.size} 项` : '服务器'}
-            </span>
-          )}
-          {selectedIds.size > 0 && !sidebarCollapsed && (
-            <button
-              className="text-[10px] text-primary-400 hover:text-primary-300 transition-colors"
-              onClick={() => setSelectedIds(new Set())}
-            >
-              取消
-            </button>
-          )}
-          {selectedIds.size === 0 && (
-            <button
-              className="p-1 rounded text-text-dim hover:text-text transition-colors"
-              onClick={toggleSidebar}
-              title={sidebarCollapsed ? '展开' : '收起'}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                {sidebarCollapsed
-                  ? <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                  : <path strokeLinecap="round" strokeLinejoin="round" d="M11 19l-7-7 7-7M19 19l-7-7 7-7" />
-                }
-              </svg>
-            </button>
-          )}
-        </div>
+      <div className="w-full h-full bg-surface-400 flex flex-col">
+        {selectedIds.size > 0 && (
+          <div className="h-7 flex items-center justify-between px-2 border-b border-border/30 flex-shrink-0">
+            <span className="text-[10px] text-text-dim font-medium">已选 {selectedIds.size} 项</span>
+            <div className="flex items-center gap-1">
+              <button
+                className="text-[10px] text-primary-400 hover:text-primary-300 transition-colors"
+                onClick={() => setSelectedIds(new Set())}
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        )}
 
-        {!sidebarCollapsed && selectedIds.size > 0 && (
+        {selectedIds.size > 0 && (
           <div className="px-2 py-1 border-b border-border/30 flex-shrink-0 flex items-center gap-1">
             <button
               className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-primary-400 hover:bg-primary-500/10 transition-colors"
@@ -525,7 +504,7 @@ const Sidebar: React.FC = () => {
           </div>
         )}
 
-        {!sidebarCollapsed && (
+        {(
           <div className="px-2 py-1.5 border-b border-border/30 flex-shrink-0">
             <div className="flex items-center gap-1.5 bg-surface-500 rounded-md px-2 py-1 border border-border/30">
               <svg className="w-3 h-3 text-text-dim flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -612,7 +591,7 @@ const Sidebar: React.FC = () => {
             </>
           )}
 
-          {filteredServers.length === 0 && !sidebarCollapsed && (
+          {filteredServers.length === 0 && (
             <div className="text-center text-text-dim text-xs py-6">
               {searchQuery ? (
                 <>
@@ -629,13 +608,11 @@ const Sidebar: React.FC = () => {
           )}
         </div>
 
-        {!sidebarCollapsed && (
-          <div className="px-2 py-1 border-t border-border/30 flex-shrink-0">
-            <div className="text-[10px] text-text-dim/40 text-center">
-              {selectedIds.size > 0 ? 'Ctrl+点击多选 · 右键批量操作' : '单击选中 · 双击连接 · Ctrl多选 · 右键更多'}
-            </div>
+        <div className="px-2 py-1 border-t border-border/30 flex-shrink-0">
+          <div className="text-[10px] text-text-dim/40 text-center">
+            {selectedIds.size > 0 ? 'Ctrl+点击多选 · 右键批量操作' : '单击选中 · 双击连接 · Ctrl多选 · 右键更多'}
           </div>
-        )}
+        </div>
 
         <button
           className="h-8 border-t border-border/30 flex items-center justify-center text-primary-400 hover:bg-primary-500/10 transition-colors"
@@ -644,7 +621,7 @@ const Sidebar: React.FC = () => {
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
-          {!sidebarCollapsed && <span className="ml-1.5 text-xs">添加服务器</span>}
+          <span className="ml-1.5 text-xs">添加服务器</span>
         </button>
       </div>
 

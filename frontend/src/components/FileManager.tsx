@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
-    ListFiles, ListLocalFiles, UploadFile, DownloadFile,
+    ListFiles, UploadFile, DownloadFile,
     DeleteFile, Mkdir, Rename, GetTransferState,
-    ResumeUpload, ResumeDownload, LocalDelete, LocalMkdir, LocalRename,
+    ResumeUpload, ResumeDownload,
 } from '../../wailsjs/go/sftp/SFTPManager'
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
 import { sftp } from '../../wailsjs/go/models'
@@ -125,37 +125,19 @@ const FileManager: React.FC = () => {
     const activeServerId = useUIStore((s) => s.activeServerId)
     const { transfers, addTransfer, updateTransfer } = useTransferStore()
     const { confirm, prompt: dialogPrompt } = useDialog()
-    const [localFiles, setLocalFiles] = useState<FileEntry[]>([])
     const [remoteFiles, setRemoteFiles] = useState<FileEntry[]>([])
-    const [localPath, setLocalPath] = useState('')
     const [remotePath, setRemotePath] = useState('/')
-    const [localLoading, setLocalLoading] = useState(false)
     const [remoteLoading, setRemoteLoading] = useState(false)
-    const [selectedLocal, setSelectedLocal] = useState<string | null>(null)
     const [selectedRemote, setSelectedRemote] = useState<string | null>(null)
-    const [localHistory, setLocalHistory] = useState<string[]>([])
     const [remoteHistory, setRemoteHistory] = useState<string[]>([])
     const [isDragging, setIsDragging] = useState(false)
     const dropZoneRef = useRef<HTMLDivElement>(null)
-    const { show: showLocalCtx, ContextMenuOverlay: LocalCtxOverlay } = useContextMenu()
     const { show: showRemoteCtx, ContextMenuOverlay: RemoteCtxOverlay } = useContextMenu()
 
     const getSftpSessionId = useCallback(() => {
         if (!activeServerId) return null
         return sftpSessions[activeServerId] || null
     }, [activeServerId, sftpSessions])
-
-    const loadLocalFiles = useCallback(async (path?: string) => {
-        setLocalLoading(true)
-        try {
-            const resp = await ListLocalFiles({ path: path || localPath })
-            if (resp.success) {
-                setLocalFiles(resp.files || [])
-                setLocalPath(resp.path || '')
-            }
-        } catch (e) { console.error(e) }
-        setLocalLoading(false)
-    }, [localPath])
 
     const loadRemoteFiles = useCallback(async (path?: string) => {
         const sessionId = getSftpSessionId()
@@ -170,8 +152,6 @@ const FileManager: React.FC = () => {
         } catch (e) { console.error(e) }
         setRemoteLoading(false)
     }, [getSftpSessionId, remotePath])
-
-    useEffect(() => { loadLocalFiles('') }, [])
 
     useEffect(() => {
         const sessionId = getSftpSessionId()
@@ -194,48 +174,12 @@ const FileManager: React.FC = () => {
         return () => { EventsOff('sftp:upload:progress') }
     }, [transfers, updateTransfer])
 
-    const handleUpload = async () => {
-        if (!selectedLocal || !getSftpSessionId()) return
-        const file = localFiles.find((f) => f.path === selectedLocal)
-        if (!file || file.type === 'directory') return
-        const sessionId = getSftpSessionId()!
-        const remoteFilePath = remotePath + '/' + file.name
-
-        try {
-            const state = await GetTransferState({
-                sessionId, localPath: file.path, remotePath: remoteFilePath, direction: 'upload',
-            } as sftp.GetTransferStateRequest)
-            if (state.canResume) {
-                const confirmed = await confirm({
-                    title: '续传确认',
-                    message: `检测到部分文件 (${formatSize(state.remoteSize || 0)} / ${formatSize(state.localSize || 0)})，是否续传？`,
-                    confirmText: '续传',
-                })
-                if (confirmed) {
-                    await ResumeUpload({ sessionId, localPath: file.path, remotePath: remoteFilePath, offset: -1 } as sftp.ResumeUploadRequest)
-                    loadRemoteFiles()
-                    return
-                }
-            }
-        } catch (e) { console.error(e) }
-
-        const taskId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-        addTransfer({ id: taskId, type: 'upload', localPath: file.path, remotePath: remoteFilePath, progress: 0, total: file.size, written: 0, status: 'pending' })
-        try {
-            await UploadFile({ sessionId, localPath: file.path, remotePath: remoteFilePath } as sftp.UploadRequest)
-            updateTransfer(taskId, { status: 'completed', progress: 100 })
-            loadRemoteFiles()
-        } catch (e) {
-            updateTransfer(taskId, { status: 'error', error: String(e) })
-        }
-    }
-
     const handleDownload = async () => {
         if (!selectedRemote || !getSftpSessionId()) return
         const file = remoteFiles.find((f) => f.path === selectedRemote)
         if (!file || file.type === 'directory') return
         const sessionId = getSftpSessionId()!
-        const localFilePath = localPath + '/' + file.name
+        const localFilePath = './downloads/' + file.name
 
         try {
             const state = await GetTransferState({
@@ -249,7 +193,7 @@ const FileManager: React.FC = () => {
                 })
                 if (confirmed) {
                     await ResumeDownload({ sessionId, remotePath: file.path, localPath: localFilePath, offset: -1 } as sftp.ResumeDownloadRequest)
-                    loadLocalFiles()
+                    loadRemoteFiles()
                     return
                 }
             }
@@ -260,7 +204,7 @@ const FileManager: React.FC = () => {
         try {
             await DownloadFile({ sessionId, remotePath: file.path, localPath: localFilePath } as sftp.DownloadRequest)
             updateTransfer(taskId, { status: 'completed', progress: 100 })
-            loadLocalFiles()
+            loadRemoteFiles()
         } catch (e) {
             updateTransfer(taskId, { status: 'error', error: String(e) })
         }
@@ -302,61 +246,6 @@ const FileManager: React.FC = () => {
             await Rename({ sessionId: getSftpSessionId()!, oldPath: target, newPath: parentPath + '/' + newName } as sftp.RenameRequest)
             loadRemoteFiles()
             setSelectedRemote(null)
-        } catch (e) { console.error(e) }
-    }
-
-    const handleDeleteLocal = async (filePath?: string) => {
-        const target = filePath || selectedLocal
-        if (!target) return
-        const file = localFiles.find(f => f.path === target)
-        const ok = await confirm({
-            title: '删除确认',
-            message: `确定删除 "${file?.name || target}" 吗？`,
-            confirmText: '删除',
-            danger: true,
-        })
-        if (!ok) return
-        try {
-            await LocalDelete({ path: target })
-            loadLocalFiles()
-            setSelectedLocal(null)
-        } catch (e) { console.error(e) }
-    }
-
-    const handleMkdirLocal = async () => {
-        const name = await dialogPrompt({
-            title: '新建目录',
-            placeholder: '目录名称',
-            confirmText: '创建',
-        })
-        if (!name) return
-        const sep = localPath.includes('\\') ? '\\' : '/'
-        try {
-            await LocalMkdir({ path: localPath + sep + name })
-            loadLocalFiles()
-        } catch (e) { console.error(e) }
-    }
-
-    const handleRenameLocal = async (filePath?: string) => {
-        const target = filePath || selectedLocal
-        if (!target) return
-        const file = localFiles.find(f => f.path === target)
-        if (!file) return
-        const newName = await dialogPrompt({
-            title: '重命名',
-            message: '输入新名称：',
-            defaultValue: file.name,
-            placeholder: '新名称',
-            confirmText: '重命名',
-        })
-        if (!newName || newName === file.name) return
-        const sep = target.includes('\\') ? '\\' : '/'
-        const parts = target.split(sep)
-        parts[parts.length - 1] = newName
-        try {
-            await LocalRename({ oldPath: target, newPath: parts.join(sep) })
-            loadLocalFiles()
-            setSelectedLocal(null)
         } catch (e) { console.error(e) }
     }
 
@@ -413,18 +302,7 @@ const FileManager: React.FC = () => {
         loadRemoteFiles()
     }, [getSftpSessionId, remotePath, addTransfer, updateTransfer, loadRemoteFiles])
 
-    const navigateLocal = (path: string) => { setLocalHistory((prev) => [...prev, localPath]); loadLocalFiles(path) }
     const navigateRemote = (path: string) => { setRemoteHistory((prev) => [...prev, remotePath]); loadRemoteFiles(path) }
-
-    const goBackLocal = () => {
-        if (localHistory.length > 0) {
-            const prev = localHistory[localHistory.length - 1]
-            setLocalHistory((h) => h.slice(0, -1))
-            loadLocalFiles(prev)
-        } else if (localPath.includes('/') || localPath.includes('\\')) {
-            loadLocalFiles(localPath.split(/[/\\]/).slice(0, -1).join('/') || '/')
-        }
-    }
 
     const goBackRemote = () => {
         if (remoteHistory.length > 0) {
@@ -437,47 +315,6 @@ const FileManager: React.FC = () => {
             loadRemoteFiles('/' + parts.join('/') || '/')
         }
     }
-
-    const getLocalContextMenu = useCallback((e: React.MouseEvent, file: FileEntry) => {
-        const items: ContextMenuItem[] = [
-            ...(file.type === 'directory' ? [{
-                label: '进入目录',
-                icon: <FolderIcon />,
-                onClick: () => navigateLocal(file.path),
-            }] : [{
-                label: '上传到远程',
-                icon: (
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 11l5-5m0 0l5 5m-5-5v12" />
-                    </svg>
-                ),
-                onClick: () => { setSelectedLocal(file.path); setTimeout(() => handleUpload(), 0) },
-                disabled: !getSftpSessionId(),
-            }]),
-            { separator: true },
-            {
-                label: '重命名',
-                icon: (
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                ),
-                onClick: () => handleRenameLocal(file.path),
-            },
-            {
-                label: '删除',
-                danger: true,
-                icon: (
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                ),
-                onClick: () => handleDeleteLocal(file.path),
-            },
-        ]
-        setSelectedLocal(file.path)
-        showLocalCtx(e, items)
-    }, [getSftpSessionId])
 
     const getRemoteContextMenu = useCallback((e: React.MouseEvent, file: FileEntry) => {
         const items: ContextMenuItem[] = [
@@ -520,78 +357,78 @@ const FileManager: React.FC = () => {
     }, [getSftpSessionId])
 
     const hasConnection = !!getSftpSessionId()
-    const localSep = localPath.includes('\\') ? '\\' : '/'
+
+    const directories = remoteFiles.filter(f => f.type === 'directory')
+    const filesOnly = remoteFiles.filter(f => f.type === 'file')
 
     return (
-        <div className="w-full h-full flex flex-col">
-            <div className="flex flex-1 overflow-hidden">
-                <div className="w-1/2 border-r border-border/40 flex flex-col">
-                    <div className="px-2 py-1.5 border-b border-border/30 flex-shrink-0 space-y-1">
-                        <div className="flex items-center gap-1.5">
-                            <button className="p-1 rounded text-text-dim hover:text-text transition-colors" onClick={goBackLocal} title="上级目录">
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
-                                </svg>
-                            </button>
-                            <span className="text-[10px] text-text-dim flex-shrink-0 font-medium">本地</span>
-                            <div className="flex-1 min-w-0">
-                                <Breadcrumb path={localPath} onNavigate={navigateLocal} sep={localSep} />
-                            </div>
-                            <button className="p-1 rounded text-text-dim hover:text-text transition-colors" onClick={() => loadLocalFiles()} title="刷新">
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="w-full h-full flex flex-col overflow-hidden">
+            <div
+                ref={dropZoneRef}
+                className={`flex-1 flex overflow-hidden transition-colors ${isDragging ? 'bg-primary-500/5' : ''}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+            >
+                <div className="flex flex-col border-r border-border/30 flex-shrink-0" style={{ width: '35%' }}>
+                    <div className="px-2 py-1.5 border-b border-border/30 flex-shrink-0 flex items-center gap-1">
+                        <span className="text-[10px] text-text-dim font-medium">目录</span>
+                        {hasConnection && (
+                            <button className="ml-auto p-0.5 rounded text-text-dim hover:text-text transition-colors" onClick={() => loadRemoteFiles()} title="刷新">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M20.49 9A9 9 0 005.64 5.64L4 4m16 16l-1.64-1.64A9 9 0 014.51 15" />
                                 </svg>
                             </button>
-                        </div>
+                        )}
                     </div>
                     <div className="flex-1 overflow-y-auto">
-                        {localLoading ? (
-                            <div className="flex items-center justify-center py-6 text-text-dim text-xs">
-                                <svg className="w-3.5 h-3.5 mr-2 animate-spin" fill="none" viewBox="0 0 24 24">
+                        {!hasConnection ? (
+                            <div className="flex items-center justify-center h-full text-text-dim text-[10px]">未连接</div>
+                        ) : remoteLoading ? (
+                            <div className="flex items-center justify-center py-4 text-text-dim text-[10px]">
+                                <svg className="w-3 h-3 mr-1.5 animate-spin" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
                                 </svg>
                                 加载中...
                             </div>
-                        ) : localFiles.length === 0 ? (
-                            <div className="flex items-center justify-center py-6 text-text-dim text-xs">
-                                空目录
-                            </div>
-                        ) : localFiles.map((file, i) => (
-                            <FileItem key={i} file={file} isSelected={selectedLocal === file.path} onSelect={setSelectedLocal} onNavigate={navigateLocal} onContextMenu={getLocalContextMenu} />
-                        ))}
+                        ) : (
+                            <>
+                                <div
+                                    className={`flex items-center gap-1.5 px-2 py-1 cursor-pointer text-[10px] text-text-dim hover:bg-surface-50/40 ${remotePath === '/' ? 'bg-primary-500/10 text-primary-300' : ''}`}
+                                    onClick={() => navigateRemote('/')}
+                                >
+                                    <FolderIcon />
+                                    <span className="truncate">/</span>
+                                </div>
+                                {directories.map((dir, i) => (
+                                    <div
+                                        key={i}
+                                        className={`flex items-center gap-1.5 px-2 py-1 cursor-pointer text-[10px] text-text-dim hover:bg-surface-50/40 ${selectedRemote === dir.path ? 'bg-primary-500/10 text-primary-300' : ''}`}
+                                        onClick={() => navigateRemote(dir.path)}
+                                        onContextMenu={(e) => getRemoteContextMenu(e, dir)}
+                                    >
+                                        <FolderIcon />
+                                        <span className="truncate">{dir.name}</span>
+                                    </div>
+                                ))}
+                            </>
+                        )}
                     </div>
-                    <LocalCtxOverlay />
                 </div>
 
-                <div
-                    ref={dropZoneRef}
-                    className={`w-1/2 flex flex-col transition-colors ${isDragging ? 'bg-primary-500/5' : ''}`}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                >
-                    <div className="px-2 py-1.5 border-b border-border/30 flex-shrink-0 space-y-1">
-                        <div className="flex items-center gap-1.5">
-                            <button className="p-1 rounded text-text-dim hover:text-text transition-colors" onClick={goBackRemote} title="上级目录">
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
-                                </svg>
-                            </button>
-                            <span className="text-[10px] text-text-dim flex-shrink-0 font-medium">远程</span>
-                            <div className="flex-1 min-w-0">
-                                {hasConnection ? (
-                                    <Breadcrumb path={remotePath} onNavigate={navigateRemote} sep="/" />
-                                ) : (
-                                    <span className="text-text-dim text-[10px]">未连接</span>
-                                )}
-                            </div>
-                            {hasConnection && (
-                                <button className="p-1 rounded text-text-dim hover:text-text transition-colors" onClick={() => loadRemoteFiles()} title="刷新">
-                                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M20.49 9A9 9 0 005.64 5.64L4 4m16 16l-1.64-1.64A9 9 0 014.51 15" />
-                                    </svg>
-                                </button>
+                <div className="flex flex-col flex-1 min-w-0">
+                    <div className="px-2 py-1.5 border-b border-border/30 flex-shrink-0 flex items-center gap-1.5">
+                        <button className="p-1 rounded text-text-dim hover:text-text transition-colors" onClick={goBackRemote} title="上级目录">
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
+                            </svg>
+                        </button>
+                        <div className="flex-1 min-w-0">
+                            {hasConnection ? (
+                                <Breadcrumb path={remotePath} onNavigate={navigateRemote} sep="/" />
+                            ) : (
+                                <span className="text-text-dim text-[10px]">未连接</span>
                             )}
                         </div>
                     </div>
@@ -615,11 +452,11 @@ const FileManager: React.FC = () => {
                                 </svg>
                                 加载中...
                             </div>
-                        ) : remoteFiles.length === 0 ? (
+                        ) : filesOnly.length === 0 ? (
                             <div className="flex items-center justify-center py-6 text-text-dim text-xs">
-                                空目录
+                                无文件
                             </div>
-                        ) : remoteFiles.map((file, i) => (
+                        ) : filesOnly.map((file, i) => (
                             <FileItem key={i} file={file} isSelected={selectedRemote === file.path} onSelect={setSelectedRemote} onNavigate={navigateRemote} onContextMenu={getRemoteContextMenu} />
                         ))}
                     </div>
@@ -656,62 +493,36 @@ const FileManager: React.FC = () => {
             )}
 
             <div className="h-9 border-t border-border/30 flex items-center px-2 gap-0.5 flex-shrink-0">
-                <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-dim hover:text-text hover:bg-surface-50/40 transition-colors" onClick={handleMkdirLocal} title="本地新建目录">
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                    </svg>
-                    <span>新建</span>
-                </button>
-                <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-dim hover:text-text hover:bg-surface-50/40 transition-colors disabled:opacity-30" onClick={() => handleRenameLocal()} disabled={!selectedLocal} title="本地重命名">
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    <span>重命名</span>
-                </button>
-                <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-dim hover:text-danger hover:bg-danger/10 transition-colors disabled:opacity-30" onClick={() => handleDeleteLocal()} disabled={!selectedLocal} title="本地删除">
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    <span>删除</span>
-                </button>
-
-                <div className="w-px h-3.5 bg-border/40 mx-1" />
-
                 {hasConnection ? (
                     <>
-                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-accent-green hover:bg-accent-green/10 transition-colors disabled:opacity-30" onClick={handleUpload} disabled={!selectedLocal} title="上传选中文件">
+                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-dim hover:text-text hover:bg-surface-50/40 transition-colors" onClick={handleMkdirRemote} title="新建目录">
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M7 11l5-5m0 0l5 5m-5-5v12" />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                             </svg>
-                            <span>上传</span>
+                            <span>新建</span>
                         </button>
+                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-dim hover:text-text hover:bg-surface-50/40 transition-colors disabled:opacity-30" onClick={() => handleRenameRemote()} disabled={!selectedRemote} title="重命名">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            <span>重命名</span>
+                        </button>
+                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-dim hover:text-danger hover:bg-danger/10 transition-colors disabled:opacity-30" onClick={() => handleDeleteRemote()} disabled={!selectedRemote} title="删除">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            <span>删除</span>
+                        </button>
+                        <div className="w-px h-3.5 bg-border/40 mx-1" />
                         <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-accent-blue hover:bg-accent-blue/10 transition-colors disabled:opacity-30" onClick={handleDownload} disabled={!selectedRemote} title="下载选中文件">
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 13l-5 5m0 0l-5-5m5 5V6" />
                             </svg>
                             <span>下载</span>
                         </button>
-                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-dim hover:text-text hover:bg-surface-50/40 transition-colors" onClick={handleMkdirRemote} title="远程新建目录">
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                            </svg>
-                            <span>新建</span>
-                        </button>
-                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-dim hover:text-text hover:bg-surface-50/40 transition-colors disabled:opacity-30" onClick={() => handleRenameRemote()} disabled={!selectedRemote} title="远程重命名">
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                            <span>重命名</span>
-                        </button>
-                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-dim hover:text-danger hover:bg-danger/10 transition-colors disabled:opacity-30" onClick={() => handleDeleteRemote()} disabled={!selectedRemote} title="远程删除">
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            <span>删除</span>
-                        </button>
                     </>
                 ) : (
-                    <span className="text-[10px] text-text-dim ml-2">请先连接服务器以使用传输功能</span>
+                    <span className="text-[10px] text-text-dim ml-2">请先连接服务器以使用文件管理</span>
                 )}
             </div>
         </div>

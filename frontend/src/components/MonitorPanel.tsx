@@ -81,7 +81,7 @@ const MonitorPanel: React.FC = () => {
 
     GetResourceUsage(sessionId)
       .then((u) => setUsage(u as ResourceUsage))
-      .catch(() => {})
+      .catch((e: any) => setError(e?.toString() || '获取资源使用率失败'))
 
     StartMonitor({ sessionId, interval: 2 }).catch((e: any) => {
       setError(e?.toString() || '启动监控失败')

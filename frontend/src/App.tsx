@@ -12,13 +12,17 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
 
 function App() {
-  const { activeTab, theme, setTheme } = useUIStore()
+  const { activeTab, theme, setTheme, sidebarCollapsed } = useUIStore()
   const { connections } = useConnectionStore()
   const registeredRef = useRef<Set<string>>(new Set())
   const togglePalette = usePaletteStore((s) => s.toggle)
-  const [leftWidth, setLeftWidth] = useState(280)
-  const [bottomHeight, setBottomHeight] = useState(220)
-  const draggingRef = useRef<{ type: 'h' | 'v'; startX: number; startY: number; startVal: number } | null>(null)
+  const [leftRatio, setLeftRatio] = useState(0.2)
+  const [leftTopRatio, setLeftTopRatio] = useState(0.65)
+  const [rightTopRatio, setRightTopRatio] = useState(0.55)
+  const [filePanelVisible, setFilePanelVisible] = useState(true)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const leftColRef = useRef<HTMLDivElement>(null)
+  const rightColRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const newlyRegistered: string[] = []
@@ -97,36 +101,82 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [togglePalette])
 
-  useEffect(() => {
-    const handleMove = (ev: MouseEvent) => {
-      if (!draggingRef.current) return
-      const d = draggingRef.current
-      if (d.type === 'h') {
-        const delta = ev.clientX - d.startX
-        setLeftWidth(Math.max(200, Math.min(d.startVal + delta, 500)))
-      } else {
-        const delta = d.startY - ev.clientY
-        setBottomHeight(Math.max(120, Math.min(d.startVal + delta, 500)))
+  const startDragCol = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    const startX = e.clientX
+    let moved = false
+
+    const onMove = (ev: MouseEvent) => {
+      if (!moved) {
+        if (Math.abs(ev.clientX - startX) < 3) return
+        moved = true
       }
+      const container = containerRef.current
+      if (!container) return
+      const ratio = (ev.clientX - container.getBoundingClientRect().left) / container.getBoundingClientRect().width
+      setLeftRatio(Math.max(0.08, Math.min(0.45, ratio)))
     }
-    const handleUp = () => { draggingRef.current = null }
-    window.addEventListener('mousemove', handleMove)
-    window.addEventListener('mouseup', handleUp)
-    return () => {
-      window.removeEventListener('mousemove', handleMove)
-      window.removeEventListener('mouseup', handleUp)
+    const onUp = () => {
+      if (!moved) useUIStore.getState().toggleSidebar()
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
     }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [leftRatio])
+
+  const startDragLeftRow = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    const startY = e.clientY
+    let moved = false
+
+    const onMove = (ev: MouseEvent) => {
+      if (!moved) {
+        if (Math.abs(ev.clientY - startY) < 3) return
+        moved = true
+      }
+      const col = leftColRef.current
+      if (!col) return
+      const r = col.getBoundingClientRect()
+      const ratio = (ev.clientY - r.top) / r.height
+      setLeftTopRatio(Math.max(0.2, Math.min(0.8, ratio)))
+    }
+    const onUp = () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [leftTopRatio])
+
+  const startDragRightRow = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    const startY = e.clientY
+    let moved = false
+    const HANDLE_H = 12
+
+    const onMove = (ev: MouseEvent) => {
+      if (!moved) {
+        if (Math.abs(ev.clientY - startY) < 3) return
+        moved = true
+      }
+      const c = rightColRef.current
+      if (!c) return
+      const r = c.getBoundingClientRect()
+      const available = r.height - HANDLE_H
+      if (available <= 0) return
+      const y = ev.clientY - r.top
+      const ratio = Math.max(0.15, Math.min(0.85, (y - HANDLE_H / 2) / available))
+      setRightTopRatio(ratio)
+    }
+    const onUp = () => {
+      if (!moved) setFilePanelVisible(v => !v)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
   }, [])
-
-  const startDragH = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    draggingRef.current = { type: 'h', startX: e.clientX, startY: 0, startVal: leftWidth }
-  }, [leftWidth])
-
-  const startDragV = useCallback((e: React.MouseEvent) => {
-    e.preventDefault()
-    draggingRef.current = { type: 'v', startX: 0, startY: e.clientY, startVal: bottomHeight }
-  }, [bottomHeight])
 
   const isTerminal = activeTab === 'terminal'
 
@@ -163,51 +213,111 @@ function App() {
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
-        {isTerminal ? (
+      <div ref={containerRef} className="flex-1 flex overflow-hidden">
+        {sidebarCollapsed ? (
+          <div className="flex flex-col items-center justify-center w-10 bg-surface-400 border-r border-border/30 flex-shrink-0">
+            <button
+              className="p-2 rounded text-text-dim hover:text-text hover:bg-surface-500/50 transition-colors"
+              onClick={() => useUIStore.getState().toggleSidebar()}
+              title="展开侧栏"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        ) : (
           <>
-            <div className="flex flex-col flex-shrink-0" style={{ width: leftWidth }}>
-              <div className="flex-1 overflow-hidden">
+            <div
+              ref={leftColRef}
+              className="flex flex-col overflow-hidden"
+              style={{ flex: `${leftRatio} 0 0` }}
+            >
+              <div className="overflow-hidden min-h-0" style={{ flex: `${leftTopRatio} 0 0` }}>
                 <Sidebar />
               </div>
               <div
-                className="h-2 cursor-row-resize flex-shrink-0 flex items-center justify-center hover:bg-primary-500/15 transition-colors group"
-                onMouseDown={startDragV}
+                className="h-1.5 cursor-row-resize flex-shrink-0 flex items-center justify-center hover:bg-primary-500/15 transition-colors group"
+                onMouseDown={startDragLeftRow}
               >
-                <div className="w-10 h-[2px] rounded-full bg-border/40 group-hover:bg-primary-400/60 transition-colors" />
+                <div className="w-8 h-[2px] rounded-full bg-border/40 group-hover:bg-primary-400/60 transition-colors" />
               </div>
-              <div className="overflow-hidden flex-shrink-0 border-t border-border/15" style={{ height: bottomHeight }}>
+              <div className="overflow-hidden min-h-0 border-t border-border/15" style={{ flex: `${1 - leftTopRatio} 0 0` }}>
                 <MonitorPanel />
               </div>
             </div>
 
             <div
-              className="w-2 cursor-col-resize flex-shrink-0 flex items-center justify-center hover:bg-primary-500/15 transition-colors group"
-              onMouseDown={startDragH}
+              className="w-3 cursor-col-resize flex-shrink-0 flex items-center justify-center hover:bg-primary-500/10 transition-colors group relative"
+              onMouseDown={startDragCol}
             >
               <div className="w-[2px] h-10 rounded-full bg-border/40 group-hover:bg-primary-400/60 transition-colors" />
-            </div>
-
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <div className="flex-1 overflow-hidden">
-                <Terminal />
-              </div>
-              <div
-                className="h-2 cursor-row-resize flex-shrink-0 flex items-center justify-center hover:bg-primary-500/15 transition-colors group"
-                onMouseDown={startDragV}
-              >
-                <div className="w-10 h-[2px] rounded-full bg-border/40 group-hover:bg-primary-400/60 transition-colors" />
-              </div>
-              <div className="overflow-hidden flex-shrink-0 border-t border-border/15" style={{ height: bottomHeight }}>
-                <FileManager />
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 p-0.5 text-text-dim/30 group-hover:text-text-dim/60 transition-all">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 19l-7-7 7-7M18 19l-7-7 7-7" />
+                </svg>
               </div>
             </div>
           </>
-        ) : (
-          <div className="flex-1 overflow-hidden">
-            <VncViewer />
-          </div>
         )}
+
+        <div
+          ref={rightColRef}
+          className="min-w-0 min-h-0 overflow-hidden"
+          style={{
+            flex: sidebarCollapsed ? '1 1 0' : `${1 - leftRatio} 1 0`,
+            display: isTerminal && filePanelVisible ? 'grid' : 'flex',
+            flexDirection: 'column',
+            gridTemplateRows: isTerminal && filePanelVisible
+              ? `${rightTopRatio}fr 12px ${1 - rightTopRatio}fr`
+              : undefined,
+          }}
+        >
+          {isTerminal && (
+            <div
+              className="min-h-0 overflow-hidden border-b border-border/20"
+              style={filePanelVisible ? undefined : { flex: '1 1 0' }}
+            >
+              <Terminal />
+            </div>
+          )}
+          {isTerminal && filePanelVisible && (
+            <div
+              className="cursor-row-resize flex items-center justify-center hover:bg-primary-500/10 transition-colors group relative"
+              onMouseDown={startDragRightRow}
+            >
+              <div className="w-12 h-[2px] rounded-full bg-border/30 group-hover:bg-primary-400/70 transition-colors" />
+              <div className="absolute right-1 top-1/2 -translate-y-1/2 text-text-dim/30 group-hover:text-text-dim/60 transition-all">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 8h16M4 16h16" />
+                </svg>
+              </div>
+            </div>
+          )}
+          {isTerminal && !filePanelVisible && (
+            <div
+              className="flex-shrink-0 flex items-center justify-center hover:bg-primary-500/10 transition-colors group cursor-pointer"
+              style={{ height: '12px' }}
+              onClick={() => setFilePanelVisible(true)}
+            >
+              <div className="text-text-dim/30 group-hover:text-text-dim/60 transition-all">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                </svg>
+              </div>
+            </div>
+          )}
+          {isTerminal && filePanelVisible && (
+            <div className="min-h-0 overflow-hidden border-t border-border/20">
+              <FileManager />
+            </div>
+          )}
+          {!isTerminal && (
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <VncViewer />
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="h-8 bg-surface-500/30 border-t border-border/30 flex items-center px-4 flex-shrink-0">

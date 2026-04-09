@@ -137,6 +137,23 @@ body {
     font-family: 'JetBrains Mono', 'Cascadia Code', Consolas, Monaco, 'Courier New', monospace;
 }
 
+.xterm-viewport::-webkit-scrollbar {
+    width: 8px;
+}
+
+.xterm-viewport::-webkit-scrollbar-track {
+    background: rgba(30, 30, 46, 0.5);
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb {
+    background: rgba(88, 91, 112, 0.6);
+    border-radius: 4px;
+}
+
+.xterm-viewport::-webkit-scrollbar-thumb:hover {
+    background: rgba(108, 112, 134, 0.8);
+}
+
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
