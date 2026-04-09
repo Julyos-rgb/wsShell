@@ -52,7 +52,7 @@ export const useUIStore = create<UIState>((set) => ({
   statusMessage: '未连接',
   latency: 0,
   transferRate: '0 KB/s',
-  filePanelOpen: false,
+  filePanelOpen: true,
   activeToolTab: null,
 
   setActiveTab: (tab) => set({ activeTab: tab }),
