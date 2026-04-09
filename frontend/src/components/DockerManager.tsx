@@ -83,7 +83,7 @@ const DockerManager: React.FC = () => {
         setDockerUnavailable(false)
         setError('')
       } else {
-        if (resp.error?.includes('not found') || resp.error?.includes('not installed') || resp.error?.includes('docker')) {
+        if (resp.error?.toLowerCase().includes('docker') || resp.error?.includes('未安装')) {
           setDockerUnavailable(true)
           setContainers([])
         }

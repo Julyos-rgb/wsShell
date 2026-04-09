@@ -95,22 +95,6 @@ type StopMonitorResponse struct {
 	Error   string `json:"error,omitempty"`
 }
 
-func (m *MonitorService) execCommand(sessionID string, cmd string) (string, error) {
-	client := m.getClient(sessionID)
-	if client == nil {
-		return "", fmt.Errorf("SSH connection not found")
-	}
-
-	session, err := client.NewSession()
-	if err != nil {
-		return "", err
-	}
-	defer session.Close()
-
-	out, err := session.CombinedOutput(cmd)
-	return strings.TrimSpace(string(out)), err
-}
-
 func (m *MonitorService) execScript(sessionID string, script string) (string, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -123,7 +107,39 @@ func (m *MonitorService) execScript(sessionID string, script string) (string, er
 	}
 	defer session.Close()
 
-	out, err := session.CombinedOutput(script)
+	out, _ := session.CombinedOutput(script)
+	return strings.TrimSpace(string(out)), nil
+}
+
+func (m *MonitorService) execCommand(sessionID string, cmd string) (string, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return "", fmt.Errorf("SSH connection not found")
+	}
+
+	session, err := client.NewSession()
+	if err != nil {
+		return "", err
+	}
+	defer session.Close()
+
+	out, _ := session.CombinedOutput(cmd)
+	return strings.TrimSpace(string(out)), nil
+}
+
+func (m *MonitorService) execCommandStrict(sessionID string, cmd string) (string, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return "", fmt.Errorf("SSH connection not found")
+	}
+
+	session, err := client.NewSession()
+	if err != nil {
+		return "", err
+	}
+	defer session.Close()
+
+	out, err := session.CombinedOutput(cmd)
 	return strings.TrimSpace(string(out)), err
 }
 
@@ -317,11 +333,20 @@ type GetDockerResponse struct {
 	Error      string            `json:"error,omitempty"`
 }
 
-func (m *MonitorService) GetDockerContainers(req GetDockerRequest) (GetDockerResponse, error) {
-	out, err := m.execCommand(req.SessionID, "docker ps -a --format '{{.ID}}|{{.Names}}|{{.Image}}|{{.Status}}|{{.Ports}}|{{.State}}'")
-	if err != nil {
-		return GetDockerResponse{Success: false, Error: err.Error()}, nil
+func (m *MonitorService) checkDocker(sessionID string) error {
+	out, _ := m.execCommand(sessionID, "command -v docker 2>/dev/null")
+	if strings.TrimSpace(out) == "" {
+		return fmt.Errorf("docker command not found")
 	}
+	return nil
+}
+
+func (m *MonitorService) GetDockerContainers(req GetDockerRequest) (GetDockerResponse, error) {
+	if err := m.checkDocker(req.SessionID); err != nil {
+		return GetDockerResponse{Success: false, Error: "Docker 未安装或不可用，请确认远程服务器已安装 Docker"}, nil
+	}
+
+	out, _ := m.execCommandStrict(req.SessionID, "docker ps -a --format '{{.ID}}|{{.Names}}|{{.Image}}|{{.Status}}|{{.Ports}}|{{.State}}'")
 
 	var containers []DockerContainer
 	lines := strings.Split(out, "\n")
@@ -358,10 +383,11 @@ type DockerStatsResponse struct {
 }
 
 func (m *MonitorService) GetDockerStats(req DockerStatsRequest) (DockerStatsResponse, error) {
-	out, err := m.execCommand(req.SessionID, "docker stats --no-stream --format '{{.Container}}|{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}|{{.NetIO}}|{{.BlockIO}}|{{.Name}}'")
-	if err != nil {
-		return DockerStatsResponse{Success: false, Error: err.Error()}, nil
+	if err := m.checkDocker(req.SessionID); err != nil {
+		return DockerStatsResponse{Success: false, Error: "Docker 未安装或不可用"}, nil
 	}
+
+	out, _ := m.execCommandStrict(req.SessionID, "docker stats --no-stream --format '{{.Container}}|{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}|{{.NetIO}}|{{.BlockIO}}|{{.Name}}'")
 
 	var containers []DockerContainer
 	lines := strings.Split(out, "\n")
@@ -400,6 +426,10 @@ type DockerActionResponse struct {
 }
 
 func (m *MonitorService) DockerAction(req DockerActionRequest) (DockerActionResponse, error) {
+	if err := m.checkDocker(req.SessionID); err != nil {
+		return DockerActionResponse{Success: false, Error: "Docker 未安装或不可用，请确认远程服务器已安装 Docker"}, nil
+	}
+
 	var cmd string
 	switch req.Action {
 	case "start":
@@ -414,7 +444,7 @@ func (m *MonitorService) DockerAction(req DockerActionRequest) (DockerActionResp
 		return DockerActionResponse{Success: false, Error: "unknown action"}, nil
 	}
 
-	_, err := m.execCommand(req.SessionID, cmd)
+	_, err := m.execCommandStrict(req.SessionID, cmd)
 	if err != nil {
 		return DockerActionResponse{Success: false, Error: err.Error()}, nil
 	}
@@ -434,12 +464,16 @@ type DockerLogsResponse struct {
 }
 
 func (m *MonitorService) GetDockerLogs(req DockerLogsRequest) (DockerLogsResponse, error) {
+	if err := m.checkDocker(req.SessionID); err != nil {
+		return DockerLogsResponse{Success: false, Error: "Docker 未安装或不可用，请确认远程服务器已安装 Docker"}, nil
+	}
+
 	tail := 100
 	if req.Tail > 0 {
 		tail = req.Tail
 	}
 	cmd := fmt.Sprintf("docker logs --tail %d %s 2>&1", tail, req.Container)
-	out, err := m.execCommand(req.SessionID, cmd)
+	out, err := m.execCommandStrict(req.SessionID, cmd)
 	if err != nil {
 		return DockerLogsResponse{Success: false, Error: err.Error()}, nil
 	}
