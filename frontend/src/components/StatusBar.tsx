@@ -9,15 +9,15 @@ const StatusBar: React.FC = () => {
 
   return (
     <>
-      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ml-2 ${conn ? 'bg-accent-green' : 'bg-text-dim'}`} />
-      <span className="ml-1.5 truncate text-[10px] text-text-dim">{statusMessage}</span>
+      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${conn ? 'bg-accent-green' : 'bg-text-dim/40'}`} />
+      <span className="ml-2 text-xs text-text-dim truncate">{statusMessage}</span>
       {conn && latency > 0 && (
-        <span className={`ml-3 text-[10px] ${latency > 200 ? 'text-accent-yellow' : latency > 500 ? 'text-danger' : 'text-accent-green'}`}>
+        <span className={`ml-3 text-xs ${latency > 500 ? 'text-danger' : latency > 200 ? 'text-accent-yellow' : 'text-accent-green'}`}>
           {latency}ms
         </span>
       )}
       {transferRate !== '0 KB/s' && (
-        <span className="ml-3 text-[10px] text-accent-blue">{transferRate}</span>
+        <span className="ml-3 text-xs text-accent-blue">{transferRate}</span>
       )}
     </>
   )

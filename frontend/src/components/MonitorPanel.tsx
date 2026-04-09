@@ -1,11 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip } from 'chart.js'
-import { Line } from 'react-chartjs-2'
 import { useUIStore, useConnectionStore } from '../stores/ui'
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
 import { GetSystemInfo, GetResourceUsage, StartMonitor, StopMonitor } from '../../wailsjs/go/monitor/MonitorService'
-
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip)
 
 interface SystemInfo {
   hostname: string
@@ -32,28 +28,16 @@ interface ResourceUsage {
   load15: number
 }
 
-const MAX_POINTS = 60
-
-const ProgressBar: React.FC<{ value: number; color: string; label: string; detail: string }> = ({ value, color, label, detail }) => (
-  <div className="space-y-1">
-    <div className="flex items-center justify-between text-[11px]">
-      <span className="text-text-muted">{label}</span>
-      <span className="text-text-dim font-mono">{detail}</span>
-    </div>
-    <div className="h-2 bg-surface-500 rounded-full overflow-hidden">
+const MetricBar: React.FC<{ value: number; color: string; label: string; detail: string }> = ({ value, color, label, detail }) => (
+  <div className="flex items-center gap-2">
+    <span className="text-[11px] text-text-dim w-8 flex-shrink-0">{label}</span>
+    <div className="flex-1 h-1.5 bg-surface-500 rounded-full overflow-hidden">
       <div
-        className="h-full rounded-full transition-all duration-500 ease-out"
+        className="h-full rounded-full transition-all duration-500"
         style={{ width: `${Math.min(value, 100)}%`, backgroundColor: color }}
       />
     </div>
-    <div className="text-right text-[10px] font-mono" style={{ color }}>{value.toFixed(1)}%</div>
-  </div>
-)
-
-const InfoRow: React.FC<{ label: string; value: string }> = ({ label, value }) => (
-  <div className="flex items-center justify-between py-0.5">
-    <span className="text-[10px] text-text-dim">{label}</span>
-    <span className="text-[11px] text-text-muted font-mono truncate max-w-[60%] text-right">{value}</span>
+    <span className="text-[11px] font-mono text-text-muted w-20 text-right flex-shrink-0">{detail}</span>
   </div>
 )
 
@@ -66,10 +50,6 @@ const MonitorPanel: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const cpuHistoryRef = useRef<number[]>([])
-  const memHistoryRef = useRef<number[]>([])
-  const labelsRef = useRef<string[]>([])
-  const tickRef = useRef(0)
   const monitorSessionRef = useRef<string | null>(null)
 
   const connection = activeServerId ? connections[activeServerId] : undefined
@@ -79,28 +59,6 @@ const MonitorPanel: React.FC = () => {
     setSysInfo(null)
     setUsage(null)
     setError('')
-    cpuHistoryRef.current = []
-    memHistoryRef.current = []
-    labelsRef.current = []
-    tickRef.current = 0
-  }, [])
-
-  const fetchSystemInfo = useCallback(async (sessionId: string) => {
-    try {
-      const info = await GetSystemInfo(sessionId)
-      setSysInfo(info as unknown as SystemInfo)
-    } catch (e: any) {
-      setError(e?.toString() || '获取系统信息失败')
-    }
-  }, [])
-
-  const fetchResourceUsage = useCallback(async (sessionId: string) => {
-    try {
-      const u = await GetResourceUsage(sessionId)
-      setUsage(u as ResourceUsage)
-    } catch (e: any) {
-      console.error('fetch usage failed:', e)
-    }
   }, [])
 
   useEffect(() => {
@@ -116,24 +74,21 @@ const MonitorPanel: React.FC = () => {
     monitorSessionRef.current = sessionId
     setLoading(true)
 
-    fetchSystemInfo(sessionId).finally(() => setLoading(false))
-    fetchResourceUsage(sessionId)
+    GetSystemInfo(sessionId)
+      .then((info) => setSysInfo(info as unknown as SystemInfo))
+      .catch((e: any) => setError(e?.toString() || '获取系统信息失败'))
+      .finally(() => setLoading(false))
+
+    GetResourceUsage(sessionId)
+      .then((u) => setUsage(u as ResourceUsage))
+      .catch(() => {})
 
     StartMonitor({ sessionId, interval: 2 }).catch((e: any) => {
       setError(e?.toString() || '启动监控失败')
     })
 
     const handleUsage = (data: any) => {
-      const u = data as ResourceUsage
-      setUsage(u)
-
-      tickRef.current += 1
-      const now = new Date()
-      const label = `${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
-
-      cpuHistoryRef.current = [...cpuHistoryRef.current, u.cpuPercent].slice(-MAX_POINTS)
-      memHistoryRef.current = [...memHistoryRef.current, u.memPercent].slice(-MAX_POINTS)
-      labelsRef.current = [...labelsRef.current, label].slice(-MAX_POINTS)
+      setUsage(data as ResourceUsage)
     }
 
     const handleError = (data: any) => {
@@ -151,190 +106,60 @@ const MonitorPanel: React.FC = () => {
     }
   }, [connection?.sessionId])
 
-  const getCpuColor = (v: number) => {
-    if (v >= 90) return '#f38ba8'
-    if (v >= 70) return '#f9e2af'
-    return '#a6e3a1'
-  }
-
-  const getMemColor = (v: number) => {
-    if (v >= 90) return '#f38ba8'
-    if (v >= 70) return '#f9e2af'
-    return '#89b4fa'
-  }
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: { duration: 300 },
-    scales: {
-      x: {
-        display: true,
-        grid: { color: 'rgba(49, 50, 68, 0.5)', drawBorder: false },
-        ticks: { color: '#585b70', font: { size: 9 }, maxTicksLimit: 8 },
-      },
-      y: {
-        display: true,
-        min: 0,
-        max: 100,
-        grid: { color: 'rgba(49, 50, 68, 0.5)', drawBorder: false },
-        ticks: { color: '#585b70', font: { size: 9 }, stepSize: 25, callback: (v: any) => `${v}%` },
-      },
-    },
-    plugins: {
-      legend: { display: false },
-      tooltip: {
-        backgroundColor: '#1e1e2e',
-        titleColor: '#cdd6f4',
-        bodyColor: '#a6adc8',
-        borderColor: '#313244',
-        borderWidth: 1,
-        callbacks: { label: (ctx: any) => `${ctx.parsed.y.toFixed(1)}%` },
-      },
-    },
-    elements: { point: { radius: 0, hitRadius: 8 }, line: { tension: 0.3, borderWidth: 1.5 } },
-  }
-
-  const cpuChartData = {
-    labels: labelsRef.current,
-    datasets: [{
-      data: cpuHistoryRef.current,
-      borderColor: '#a6e3a1',
-      backgroundColor: 'rgba(166, 227, 161, 0.08)',
-      fill: true,
-    }],
-  }
-
-  const memChartData = {
-    labels: labelsRef.current,
-    datasets: [{
-      data: memHistoryRef.current,
-      borderColor: '#89b4fa',
-      backgroundColor: 'rgba(137, 180, 250, 0.08)',
-      fill: true,
-    }],
-  }
+  const getCpuColor = (v: number) => v >= 90 ? '#ef4444' : v >= 70 ? '#f59e0b' : '#22c55e'
+  const getMemColor = (v: number) => v >= 90 ? '#ef4444' : v >= 70 ? '#f59e0b' : '#3b82f6'
+  const getDiskColor = (v: number) => v >= 90 ? '#ef4444' : v >= 70 ? '#f59e0b' : '#22c55e'
 
   if (!isConnected) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-center space-y-2">
-          <svg className="w-10 h-10 mx-auto text-text-dim/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <div className="text-center space-y-1.5">
+          <svg className="w-8 h-8 mx-auto text-text-dim/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
           </svg>
-          <div className="text-xs text-text-dim">未连接到服务器</div>
-          <div className="text-[10px] text-text-dim/50">选择并连接服务器后查看系统监控</div>
+          <div className="text-xs text-text-dim">连接服务器后查看监控</div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto">
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border/40 flex-shrink-0">
-        <svg className="w-3.5 h-3.5 text-accent-green" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 12V5.25" />
-        </svg>
-        <span className="text-xs text-text-muted font-medium">系统监控</span>
-        {connection && <span className="text-[10px] text-text-dim font-mono">{connection.host}</span>}
-        {loading && <span className="text-[10px] text-accent-yellow animate-pulse">加载中...</span>}
-      </div>
-
+    <div className="flex flex-col h-full overflow-y-auto p-3 space-y-2.5">
       {error && (
-        <div className="mx-3 mt-2 px-2 py-1 bg-danger/10 border border-danger/20 rounded text-[10px] text-danger">{error}</div>
+        <div className="px-2 py-1 bg-danger/10 border border-danger/20 rounded text-[11px] text-danger">{error}</div>
       )}
 
-      <div className="flex-1 p-3 space-y-3">
-        {sysInfo && (
-          <div className="bg-surface-300/50 rounded-lg border border-border/30 p-3">
-            <div className="text-[10px] text-text-dim font-medium mb-2 uppercase tracking-wider">系统信息</div>
-            <div className="space-y-0.5">
-              <InfoRow label="主机名" value={sysInfo.hostname} />
-              <InfoRow label="操作系统" value={sysInfo.os} />
-              <InfoRow label="内核" value={sysInfo.kernel} />
-              <InfoRow label="架构" value={sysInfo.arch} />
-              <InfoRow label="CPU" value={`${sysInfo.cpuModel} (${sysInfo.cpuCores} 核)`} />
-              <InfoRow label="内存" value={`${sysInfo.totalMemMB} MB`} />
-              <InfoRow label="运行时间" value={sysInfo.uptime} />
-              <InfoRow label="在线用户" value={`${sysInfo.users}`} />
+      {sysInfo && (
+        <div className="flex items-center gap-3 text-[11px] text-text-dim flex-shrink-0">
+          <span className="text-xs font-medium text-text-muted">{sysInfo.hostname}</span>
+          <span className="w-px h-3 bg-border/40" />
+          <span>运行 {sysInfo.uptime}</span>
+          {loading && <span className="text-accent-yellow animate-pulse">加载中</span>}
+        </div>
+      )}
+
+      {usage && (
+        <div className="space-y-2">
+          <MetricBar value={usage.cpuPercent} color={getCpuColor(usage.cpuPercent)} label="CPU" detail={`${usage.cpuPercent.toFixed(1)}%`} />
+          <MetricBar value={usage.memPercent} color={getMemColor(usage.memPercent)} label="内存" detail={`${usage.memUsedMB.toFixed(0)}/${usage.memTotalMB.toFixed(0)}M`} />
+          <MetricBar value={usage.diskPercent} color={getDiskColor(usage.diskPercent)} label="磁盘" detail={`${usage.diskUsedGB.toFixed(1)}/${usage.diskTotalGB.toFixed(1)}G`} />
+
+          <div className="flex items-center gap-3 pt-1">
+            <span className="text-[11px] text-text-dim">负载</span>
+            <div className="flex items-center gap-2 text-[11px] font-mono">
+              <span style={{ color: usage.load1 > (sysInfo?.cpuCores ?? 1) ? '#ef4444' : '#22c55e' }}>{usage.load1.toFixed(2)}</span>
+              <span className="text-text-dim/40">/</span>
+              <span className="text-text-muted">{usage.load5.toFixed(2)}</span>
+              <span className="text-text-dim/40">/</span>
+              <span className="text-text-muted">{usage.load15.toFixed(2)}</span>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {usage && (
-          <>
-            <div className="bg-surface-300/50 rounded-lg border border-border/30 p-3 space-y-3">
-              <div className="text-[10px] text-text-dim font-medium uppercase tracking-wider">资源使用</div>
-              <ProgressBar
-                value={usage.cpuPercent}
-                color={getCpuColor(usage.cpuPercent)}
-                label="CPU"
-                detail={`${usage.cpuPercent.toFixed(1)}%`}
-              />
-              <ProgressBar
-                value={usage.memPercent}
-                color={getMemColor(usage.memPercent)}
-                label="内存"
-                detail={`${usage.memUsedMB.toFixed(0)} / ${usage.memTotalMB.toFixed(0)} MB`}
-              />
-              <ProgressBar
-                value={usage.diskPercent}
-                color={usage.diskPercent >= 90 ? '#f38ba8' : usage.diskPercent >= 70 ? '#f9e2af' : '#a6e3a1'}
-                label="磁盘"
-                detail={`${usage.diskUsedGB.toFixed(1)} / ${usage.diskTotalGB.toFixed(1)} GB`}
-              />
-            </div>
-
-            <div className="bg-surface-300/50 rounded-lg border border-border/30 p-3">
-              <div className="text-[10px] text-text-dim font-medium mb-2 uppercase tracking-wider">负载均值</div>
-              <div className="flex items-center gap-4">
-                <div className="flex-1 text-center">
-                  <div className="text-sm font-mono" style={{ color: usage.load1 > (sysInfo?.cpuCores ?? 1) ? '#f38ba8' : '#a6e3a1' }}>
-                    {usage.load1.toFixed(2)}
-                  </div>
-                  <div className="text-[9px] text-text-dim mt-0.5">1 min</div>
-                </div>
-                <div className="w-px h-6 bg-border/40" />
-                <div className="flex-1 text-center">
-                  <div className="text-sm font-mono text-text-muted">{usage.load5.toFixed(2)}</div>
-                  <div className="text-[9px] text-text-dim mt-0.5">5 min</div>
-                </div>
-                <div className="w-px h-6 bg-border/40" />
-                <div className="flex-1 text-center">
-                  <div className="text-sm font-mono text-text-muted">{usage.load15.toFixed(2)}</div>
-                  <div className="text-[9px] text-text-dim mt-0.5">15 min</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-surface-300/50 rounded-lg border border-border/30 p-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-[10px] text-text-dim font-medium uppercase tracking-wider">CPU 趋势</div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-0.5 rounded-full bg-accent-green" />
-                  <span className="text-[9px] text-text-dim">CPU</span>
-                </div>
-              </div>
-              <div className="h-32">
-                <Line data={cpuChartData} options={chartOptions} />
-              </div>
-            </div>
-
-            <div className="bg-surface-300/50 rounded-lg border border-border/30 p-3">
-              <div className="flex items-center justify-between mb-2">
-                <div className="text-[10px] text-text-dim font-medium uppercase tracking-wider">内存趋势</div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-0.5 rounded-full bg-accent-blue" />
-                  <span className="text-[9px] text-text-dim">MEM</span>
-                </div>
-              </div>
-              <div className="h-32">
-                <Line data={memChartData} options={chartOptions} />
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+      {!usage && !error && (
+        <div className="text-xs text-text-dim animate-pulse">正在获取系统信息...</div>
+      )}
     </div>
   )
 }
