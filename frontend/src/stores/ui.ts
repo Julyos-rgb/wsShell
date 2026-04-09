@@ -38,7 +38,7 @@ export const useUIStore = create<UIState>((set) => ({
   activeTab: 'terminal',
   activeServerId: null,
   sidebarCollapsed: false,
-  theme: (localStorage.getItem('wsshell-theme') as 'dark' | 'light') || 'light',
+  theme: (() => { const t = localStorage.getItem('wsshell-theme'); return t === 'dark' || t === 'light' ? t : 'light' })(),
   showAddServerDialog: false,
   editingServer: null,
   statusMessage: '未连接',
