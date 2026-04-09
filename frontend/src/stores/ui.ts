@@ -38,7 +38,7 @@ export const useUIStore = create<UIState>((set) => ({
   activeTab: 'terminal',
   activeServerId: null,
   sidebarCollapsed: false,
-  theme: 'dark',
+  theme: (localStorage.getItem('wsshell-theme') as 'dark' | 'light') || 'light',
   showAddServerDialog: false,
   editingServer: null,
   statusMessage: '未连接',
@@ -48,7 +48,11 @@ export const useUIStore = create<UIState>((set) => ({
   setActiveTab: (tab) => set({ activeTab: tab }),
   setActiveServerId: (serverId) => set({ activeServerId: serverId }),
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
-  setTheme: (theme) => set({ theme }),
+  setTheme: (theme) => {
+    localStorage.setItem('wsshell-theme', theme)
+    document.documentElement.setAttribute('data-theme', theme)
+    set({ theme })
+  },
   setShowAddServerDialog: (show) => set({ showAddServerDialog: show }),
   setEditingServer: (server) => set({ editingServer: server }),
   setStatusMessage: (msg) => set({ statusMessage: msg }),

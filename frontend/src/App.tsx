@@ -27,7 +27,7 @@ const tabs: { id: TabId; label: string; shortcut: string }[] = [
 ]
 
 function App() {
-  const { activeTab } = useUIStore()
+  const { activeTab, theme, setTheme } = useUIStore()
   const { connections } = useConnectionStore()
   const registeredRef = useRef<Set<string>>(new Set())
   const togglePalette = usePaletteStore((s) => s.toggle)
@@ -149,20 +149,35 @@ function App() {
     <DialogProvider>
     <div className="flex flex-col h-screen w-screen bg-surface-400 text-text overflow-hidden">
       <div className="h-9 bg-surface-400 flex items-center px-3 flex-shrink-0 border-b border-border/40">
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-danger/80" />
-          <div className="w-3 h-3 rounded-full bg-accent-yellow/80" />
-          <div className="w-3 h-3 rounded-full bg-accent-green/80" />
+        <div className="flex items-center gap-2">
+          <img src="/icon.png" alt="wsShell" className="w-4 h-4 rounded" />
+          <span className="text-xs text-text-dim font-medium">wsShell</span>
         </div>
-        <span className="text-xs text-text-dim ml-3 font-medium">wsShell</span>
-        <div className="ml-auto flex items-center gap-0.5">
+        <div className="ml-4 flex items-center gap-0.5">
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              className={`px-2.5 py-1 text-xs rounded transition-colors ${activeTab === tab.id ? 'text-primary-300 bg-primary-500/10' : 'text-text-dim hover:text-text-muted'}`}
+              className={`px-2.5 py-1 text-xs rounded transition-colors ${activeTab === tab.id ? 'text-primary-500 bg-primary-500/10' : 'text-text-dim hover:text-text-muted'}`}
               onClick={() => useUIStore.getState().setActiveTab(tab.id)}
             >{tab.label}</button>
           ))}
+        </div>
+        <div className="ml-auto flex items-center">
+          <button
+            className="p-1.5 rounded text-text-dim hover:text-text transition-colors"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            title={theme === 'dark' ? '切换到浅色主题' : '切换到深色主题'}
+          >
+            {theme === 'dark' ? (
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ) : (
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            )}
+          </button>
         </div>
       </div>
 

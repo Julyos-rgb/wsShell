@@ -8,61 +8,61 @@ export default {
         extend: {
             colors: {
                 'primary': {
-                    DEFAULT: '#818cf8',
-                    50: '#eef2ff',
-                    100: '#e0e7ff',
-                    200: '#c7d2fe',
-                    300: '#a5b4fc',
-                    400: '#818cf8',
-                    500: '#6366f1',
-                    600: '#4f46e5',
-                    700: '#4338ca',
-                    800: '#3730a3',
-                    900: '#312e81',
+                    DEFAULT: 'rgb(var(--c-primary-400) / <alpha-value>)',
+                    50: 'rgb(var(--c-primary-50) / <alpha-value>)',
+                    100: 'rgb(var(--c-primary-100) / <alpha-value>)',
+                    200: 'rgb(var(--c-primary-200) / <alpha-value>)',
+                    300: 'rgb(var(--c-primary-300) / <alpha-value>)',
+                    400: 'rgb(var(--c-primary-400) / <alpha-value>)',
+                    500: 'rgb(var(--c-primary-500) / <alpha-value>)',
+                    600: 'rgb(var(--c-primary-600) / <alpha-value>)',
+                    700: 'rgb(var(--c-primary-700) / <alpha-value>)',
+                    800: 'rgb(var(--c-primary-800) / <alpha-value>)',
+                    900: 'rgb(var(--c-primary-900) / <alpha-value>)',
                 },
                 'surface': {
-                    DEFAULT: '#1e1e2e',
-                    50: '#313244',
-                    100: '#282838',
-                    200: '#232333',
-                    300: '#1e1e2e',
-                    400: '#181825',
-                    500: '#11111b',
+                    DEFAULT: 'rgb(var(--c-surface-300) / <alpha-value>)',
+                    50: 'rgb(var(--c-surface-50) / <alpha-value>)',
+                    100: 'rgb(var(--c-surface-100) / <alpha-value>)',
+                    200: 'rgb(var(--c-surface-200) / <alpha-value>)',
+                    300: 'rgb(var(--c-surface-300) / <alpha-value>)',
+                    400: 'rgb(var(--c-surface-400) / <alpha-value>)',
+                    500: 'rgb(var(--c-surface-500) / <alpha-value>)',
                 },
                 'accent': {
-                    DEFAULT: '#94e2d5',
-                    blue: '#89b4fa',
-                    green: '#a6e3a1',
-                    yellow: '#f9e2af',
-                    red: '#f38ba8',
-                    pink: '#f5c2e7',
-                    mauve: '#cba6f7',
-                    peach: '#fab387',
-                    teal: '#94e2d5',
-                    sky: '#89dceb',
+                    DEFAULT: 'rgb(var(--c-accent) / <alpha-value>)',
+                    blue: 'rgb(var(--c-accent-blue) / <alpha-value>)',
+                    green: 'rgb(var(--c-accent-green) / <alpha-value>)',
+                    yellow: 'rgb(var(--c-accent-yellow) / <alpha-value>)',
+                    red: 'rgb(var(--c-accent-red) / <alpha-value>)',
+                    pink: 'rgb(var(--c-accent-pink) / <alpha-value>)',
+                    mauve: 'rgb(var(--c-accent-mauve) / <alpha-value>)',
+                    peach: 'rgb(var(--c-accent-peach) / <alpha-value>)',
+                    teal: 'rgb(var(--c-accent-teal) / <alpha-value>)',
+                    sky: 'rgb(var(--c-accent-sky) / <alpha-value>)',
                 },
                 'text': {
-                    DEFAULT: '#cdd6f4',
-                    muted: '#a6adc8',
-                    subtext: '#6c7086',
-                    dim: '#585b70',
+                    DEFAULT: 'rgb(var(--c-text) / <alpha-value>)',
+                    muted: 'rgb(var(--c-text-muted) / <alpha-value>)',
+                    subtext: 'rgb(var(--c-text-subtext) / <alpha-value>)',
+                    dim: 'rgb(var(--c-text-dim) / <alpha-value>)',
                 },
                 'border': {
-                    DEFAULT: '#313244',
-                    hover: '#45475a',
-                    active: '#585b70',
+                    DEFAULT: 'rgb(var(--c-border) / <alpha-value>)',
+                    hover: 'rgb(var(--c-border-hover) / <alpha-value>)',
+                    active: 'rgb(var(--c-border-active) / <alpha-value>)',
                 },
                 'danger': {
-                    DEFAULT: '#f38ba8',
-                    dark: '#45273a',
+                    DEFAULT: 'rgb(var(--c-danger) / <alpha-value>)',
+                    dark: 'rgb(var(--c-danger-dark) / <alpha-value>)',
                 },
                 'warning': {
-                    DEFAULT: '#f9e2af',
-                    dark: '#453d2A',
+                    DEFAULT: 'rgb(var(--c-warning) / <alpha-value>)',
+                    dark: 'rgb(var(--c-warning-dark) / <alpha-value>)',
                 },
                 'success': {
-                    DEFAULT: '#a6e3a1',
-                    dark: '#2a3d2e',
+                    DEFAULT: 'rgb(var(--c-success) / <alpha-value>)',
+                    dark: 'rgb(var(--c-success-dark) / <alpha-value>)',
                 },
             },
             fontFamily: {
@@ -78,46 +78,21 @@ export default {
             },
             keyframes: {
                 fadeIn: {
-                    '0%': {
-                        opacity: '0'
-                    },
-                    '100%': {
-                        opacity: '1'
-                    },
+                    '0%': { opacity: '0' },
+                    '100%': { opacity: '1' },
                 },
                 slideUp: {
-                    '0%': {
-                        opacity: '0',
-                        transform: 'translateY(8px)'
-                    },
-                    '100%': {
-                        opacity: '1',
-                        transform: 'translateY(0)'
-                    },
+                    '0%': { opacity: '0', transform: 'translateY(8px)' },
+                    '100%': { opacity: '1', transform: 'translateY(0)' },
                 },
                 slideDown: {
-                    '0%': {
-                        opacity: '0',
-                        transform: 'translateY(-8px)'
-                    },
-                    '100%': {
-                        opacity: '1',
-                        transform: 'translateY(0)'
-                    },
+                    '0%': { opacity: '0', transform: 'translateY(-8px)' },
+                    '100%': { opacity: '1', transform: 'translateY(0)' },
                 },
                 pulseSoft: {
-                    '0%, 100%': {
-                        opacity: '1'
-                    },
-                    '50%': {
-                        opacity: '0.6'
-                    },
+                    '0%, 100%': { opacity: '1' },
+                    '50%': { opacity: '0.6' },
                 },
-            },
-            boxShadow: {
-                'glass': '0 4px 30px rgba(0, 0, 0, 0.3)',
-                'glow': '0 0 15px rgba(129, 140, 248, 0.15)',
-                'glow-sm': '0 0 8px rgba(129, 140, 248, 0.1)',
             },
         },
     },

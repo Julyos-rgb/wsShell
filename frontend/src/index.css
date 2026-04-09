@@ -5,18 +5,115 @@
 @tailwind utilities;
 
 :root {
+  --c-primary-50: 238 242 255;
+  --c-primary-100: 224 231 255;
+  --c-primary-200: 199 210 254;
+  --c-primary-300: 165 180 252;
+  --c-primary-400: 129 140 248;
+  --c-primary-500: 99 102 241;
+  --c-primary-600: 79 70 229;
+  --c-primary-700: 67 56 202;
+  --c-primary-800: 55 48 163;
+  --c-primary-900: 49 46 129;
+
+  --c-surface-50: 248 249 252;
+  --c-surface-100: 240 241 245;
+  --c-surface-200: 228 229 235;
+  --c-surface-300: 216 217 225;
+  --c-surface-400: 255 255 255;
+  --c-surface-500: 235 237 242;
+
+  --c-text: 30 30 46;
+  --c-text-muted: 74 75 92;
+  --c-text-subtext: 108 109 128;
+  --c-text-dim: 156 160 174;
+
+  --c-border: 216 217 227;
+  --c-border-hover: 196 197 208;
+  --c-border-active: 168 169 184;
+
+  --c-danger: 229 72 77;
+  --c-danger-dark: 253 232 232;
+  --c-warning: 245 166 35;
+  --c-warning-dark: 254 245 231;
+  --c-success: 48 164 108;
+  --c-success-dark: 225 244 233;
+
+  --c-accent: 62 138 138;
+  --c-accent-blue: 59 130 246;
+  --c-accent-green: 34 197 94;
+  --c-accent-yellow: 234 179 8;
+  --c-accent-red: 239 68 68;
+  --c-accent-pink: 236 72 153;
+  --c-accent-mauve: 139 92 246;
+  --c-accent-peach: 249 115 22;
+  --c-accent-teal: 20 184 166;
+  --c-accent-sky: 14 165 233;
+
+  --shadow-glass: 0 4px 30px rgba(0, 0, 0, 0.08);
+  --shadow-glow: 0 0 15px rgba(99, 102, 241, 0.12);
+  --shadow-glow-sm: 0 0 8px rgba(99, 102, 241, 0.08);
+
+  --scrollbar-thumb: #c4c5d0;
+  --scrollbar-thumb-hover: #a8a9b8;
+
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: dark;
-  color: #cdd6f4;
-  background-color: #1e1e2e;
-
+  color-scheme: light;
+  color: rgb(var(--c-text));
+  background-color: rgb(var(--c-surface-400));
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+[data-theme="dark"] {
+  --c-surface-50: 49 50 68;
+  --c-surface-100: 40 40 56;
+  --c-surface-200: 35 35 51;
+  --c-surface-300: 30 30 46;
+  --c-surface-400: 24 24 37;
+  --c-surface-500: 17 17 27;
+
+  --c-text: 205 214 244;
+  --c-text-muted: 166 173 200;
+  --c-text-subtext: 108 112 134;
+  --c-text-dim: 88 91 112;
+
+  --c-border: 49 50 68;
+  --c-border-hover: 69 71 90;
+  --c-border-active: 88 91 112;
+
+  --c-danger: 243 139 168;
+  --c-danger-dark: 69 39 58;
+  --c-warning: 249 226 175;
+  --c-warning-dark: 69 61 42;
+  --c-success: 166 227 161;
+  --c-success-dark: 42 61 46;
+
+  --c-accent: 148 226 213;
+  --c-accent-blue: 137 180 250;
+  --c-accent-green: 166 227 161;
+  --c-accent-yellow: 249 226 175;
+  --c-accent-red: 243 139 168;
+  --c-accent-pink: 245 194 231;
+  --c-accent-mauve: 203 166 247;
+  --c-accent-peach: 250 179 135;
+  --c-accent-teal: 148 226 213;
+  --c-accent-sky: 137 220 235;
+
+  --shadow-glass: 0 4px 30px rgba(0, 0, 0, 0.3);
+  --shadow-glow: 0 0 15px rgba(129, 140, 248, 0.15);
+  --shadow-glow-sm: 0 0 8px rgba(129, 140, 248, 0.1);
+
+  --scrollbar-thumb: #45475a;
+  --scrollbar-thumb-hover: #585b70;
+
+  color-scheme: dark;
+  color: rgb(var(--c-text));
+  background-color: rgb(var(--c-surface-400));
 }
 
 body {
@@ -50,12 +147,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #45475a;
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #585b70;
+  background: var(--scrollbar-thumb-hover);
 }
 
 ::-webkit-scrollbar-corner {
@@ -64,28 +161,57 @@ body {
 
 @layer components {
   .glass-panel {
-    @apply bg-surface-400/80 backdrop-blur-xl border border-border/60;
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgb(var(--c-border) / 0.6);
+    background-color: rgb(var(--c-surface-400) / 0.8);
   }
 
   .btn-primary {
-    @apply px-3 py-1.5 text-sm font-medium rounded-lg bg-primary-500 text-white
-           hover:bg-primary-600 active:bg-primary-700 transition-all duration-150
-           shadow-glow-sm hover:shadow-glow disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed;
+    background-color: rgb(var(--c-primary-500));
+    color: white;
+    box-shadow: var(--shadow-glow-sm);
+  }
+  .btn-primary:hover {
+    background-color: rgb(var(--c-primary-600));
+    box-shadow: var(--shadow-glow);
+  }
+  .btn-primary:active {
+    background-color: rgb(var(--c-primary-700));
   }
 
   .btn-ghost {
-    @apply px-3 py-1.5 text-sm font-medium rounded-lg text-text-muted
-           hover:text-text hover:bg-surface-50/50 transition-all duration-150;
+    @apply px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-150;
+    color: rgb(var(--c-text-muted));
+  }
+  .btn-ghost:hover {
+    color: rgb(var(--c-text));
+    background-color: rgb(var(--c-surface-50) / 0.5);
   }
 
   .btn-danger {
-    @apply px-3 py-1.5 text-sm font-medium rounded-lg text-danger hover:bg-danger-dark
-           transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed;
+    color: rgb(var(--c-danger));
+  }
+  .btn-danger:hover {
+    background-color: rgb(var(--c-danger-dark));
   }
 
   .input-field {
-    @apply w-full bg-surface-500 border border-border rounded-lg px-3 py-2 text-text text-sm
-           placeholder:text-text-dim focus:outline-none focus:border-primary-400 focus:shadow-glow-sm
-           transition-all duration-150;
+    @apply w-full rounded-lg px-3 py-2 text-sm transition-all duration-150;
+    background-color: rgb(var(--c-surface-50));
+    border: 1px solid rgb(var(--c-border));
+    color: rgb(var(--c-text));
+  }
+  .input-field::placeholder {
+    color: rgb(var(--c-text-dim));
+  }
+  .input-field:focus {
+    outline: none;
+    border-color: rgb(var(--c-primary-400));
+    box-shadow: var(--shadow-glow-sm);
   }
 }
