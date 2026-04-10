@@ -137,6 +137,13 @@ const VncViewer: React.FC = () => {
     }
   }, [cleanup])
 
+  // Disconnect VNC when switching to a different server
+  useEffect(() => {
+    if (rfbRef.current && status === 'connected') {
+      disconnect()
+    }
+  }, [activeServerId])
+
   const showPasswordInput = activeServer?.vncEnabled && status === 'idle'
   const vncPort = activeServer?.vncPort || 5900
 

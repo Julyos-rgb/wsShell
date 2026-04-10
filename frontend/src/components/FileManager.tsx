@@ -123,7 +123,7 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({ path, onNavigate, sep }) => {
 const FileManager: React.FC = () => {
     const { sftpSessions } = useConnectionStore()
     const activeServerId = useUIStore((s) => s.activeServerId)
-    const { transfers, addTransfer, updateTransfer } = useTransferStore()
+    const { transfers, addTransfer, updateTransfer, removeTransfer } = useTransferStore()
     const { confirm, prompt: dialogPrompt } = useDialog()
     const [remoteFiles, setRemoteFiles] = useState<FileEntry[]>([])
     const [remotePath, setRemotePath] = useState('/')
@@ -131,7 +131,14 @@ const FileManager: React.FC = () => {
     const [selectedRemote, setSelectedRemote] = useState<string | null>(null)
     const [remoteHistory, setRemoteHistory] = useState<string[]>([])
     const [isDragging, setIsDragging] = useState(false)
+    const [searchQuery, setSearchQuery] = useState('')
+    const [showSearch, setShowSearch] = useState(false)
+    const [pathInput, setPathInput] = useState('')
+    const [showPathInput, setShowPathInput] = useState(false)
     const dropZoneRef = useRef<HTMLDivElement>(null)
+    const remotePathRef = useRef('/')
+    const searchInputRef = useRef<HTMLInputElement>(null)
+    const pathInputRef = useRef<HTMLInputElement>(null)
     const { show: showRemoteCtx, ContextMenuOverlay: RemoteCtxOverlay } = useContextMenu()
 
     const getSftpSessionId = useCallback(() => {
@@ -142,16 +149,19 @@ const FileManager: React.FC = () => {
     const loadRemoteFiles = useCallback(async (path?: string) => {
         const sessionId = getSftpSessionId()
         if (!sessionId) return
+        const targetPath = path || remotePathRef.current
         setRemoteLoading(true)
         try {
-            const resp = await ListFiles({ sessionId, path: path || remotePath })
+            const resp = await ListFiles({ sessionId, path: targetPath })
             if (resp.success) {
                 setRemoteFiles((resp.files || []) as FileEntry[])
                 setRemotePath(resp.path || '/')
+                remotePathRef.current = resp.path || '/'
+                setPathInput(resp.path || '/')
             }
         } catch (e) { console.error(e) }
         setRemoteLoading(false)
-    }, [getSftpSessionId, remotePath])
+    }, [getSftpSessionId])
 
     useEffect(() => {
         const sessionId = getSftpSessionId()
@@ -174,6 +184,16 @@ const FileManager: React.FC = () => {
         EventsOn('sftp:upload:progress', handleUploadProgress)
         return () => { EventsOff('sftp:upload:progress') }
     }, [])
+
+    // Auto-remove completed transfers after 3 seconds
+    useEffect(() => {
+        const completed = transfers.filter(t => t.status === 'completed')
+        if (completed.length === 0) return
+        const timers = completed.map(t =>
+            setTimeout(() => removeTransfer(t.id), 3000)
+        )
+        return () => { timers.forEach(clearTimeout) }
+    }, [transfers.filter(t => t.status === 'completed').length, removeTransfer])
 
     const handleDownload = async () => {
         if (!selectedRemote || !getSftpSessionId()) return
@@ -269,7 +289,8 @@ const FileManager: React.FC = () => {
 
         for (const localPath of localPaths) {
             const fileName = localPath.split(/[/\\]/).pop() || 'unknown'
-            const remoteFilePath = remotePath === '/' ? '/' + fileName : remotePath + '/' + fileName
+            const currentRemotePath = remotePathRef.current
+            const remoteFilePath = currentRemotePath === '/' ? '/' + fileName : currentRemotePath + '/' + fileName
 
             try {
                 const state = await GetTransferState({ sessionId, localPath, remotePath: remoteFilePath, direction: 'upload' } as sftp.GetTransferStateRequest)
@@ -295,7 +316,7 @@ const FileManager: React.FC = () => {
             }
         }
         loadRemoteFiles()
-    }, [getSftpSessionId, remotePath, addTransfer, updateTransfer, loadRemoteFiles])
+    }, [getSftpSessionId, addTransfer, updateTransfer, loadRemoteFiles])
 
     useEffect(() => {
         OnFileDrop((_x: number, _y: number, paths: string[]) => {
@@ -317,6 +338,39 @@ const FileManager: React.FC = () => {
     }, [uploadLocalFiles])
 
     const navigateRemote = (path: string) => { setRemoteHistory((prev) => [...prev, remotePath]); loadRemoteFiles(path) }
+
+    const handlePathSubmit = () => {
+        const p = pathInput.trim()
+        if (p) {
+            loadRemoteFiles(p)
+            setShowPathInput(false)
+        }
+    }
+
+    const hasConnection = !!getSftpSessionId()
+
+    const directories = remoteFiles.filter(f => f.type === 'directory')
+    const filesOnly = remoteFiles.filter(f => f.type === 'file')
+
+    const filteredFiles = React.useMemo(() => {
+        if (!searchQuery.trim()) return { directories, filesOnly }
+        const q = searchQuery.toLowerCase().trim()
+        return {
+            directories: directories.filter(f => f.name.toLowerCase().includes(q)),
+            filesOnly: filesOnly.filter(f => f.name.toLowerCase().includes(q)),
+        }
+    }, [directories, filesOnly, searchQuery])
+
+    useEffect(() => {
+        if (showSearch && searchInputRef.current) searchInputRef.current.focus()
+    }, [showSearch])
+
+    useEffect(() => {
+        if (showPathInput && pathInputRef.current) {
+            pathInputRef.current.focus()
+            pathInputRef.current.select()
+        }
+    }, [showPathInput])
 
     const goBackRemote = () => {
         if (remoteHistory.length > 0) {
@@ -370,11 +424,6 @@ const FileManager: React.FC = () => {
         showRemoteCtx(e, items)
     }, [getSftpSessionId])
 
-    const hasConnection = !!getSftpSessionId()
-
-    const directories = remoteFiles.filter(f => f.type === 'directory')
-    const filesOnly = remoteFiles.filter(f => f.type === 'file')
-
     return (
         <div className="w-full h-full flex flex-col overflow-hidden">
             <div
@@ -383,16 +432,37 @@ const FileManager: React.FC = () => {
                 style={{'--wails-drop-target': 'filemanager'} as React.CSSProperties}
             >
                 <div className="flex flex-col border-r border-border/30 flex-shrink-0" style={{ width: '35%' }}>
-                    <div className="px-2 py-1.5 border-b border-border/30 flex-shrink-0 flex items-center gap-1">
+                    <div className="px-2 py-1 border-b border-border/30 flex-shrink-0 flex items-center gap-1">
                         <span className="text-[10px] text-text-dim font-medium">目录</span>
-                        {hasConnection && (
-                            <button className="ml-auto p-0.5 rounded text-text-dim hover:text-text transition-colors" onClick={() => loadRemoteFiles()} title="刷新">
-                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M20.49 9A9 9 0 005.64 5.64L4 4m16 16l-1.64-1.64A9 9 0 014.51 15" />
-                                </svg>
-                            </button>
-                        )}
+                        <div className="ml-auto flex items-center gap-0.5">
+                            {hasConnection && (
+                                <>
+                                    <button className="p-0.5 rounded text-text-dim hover:text-text transition-colors" onClick={() => { setShowSearch(!showSearch); setSearchQuery('') }} title="搜索">
+                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                    </button>
+                                    <button className="p-0.5 rounded text-text-dim hover:text-text transition-colors" onClick={() => loadRemoteFiles()} title="刷新">
+                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5M20 20v-5h-5M20.49 9A9 9 0 005.64 5.64L4 4m16 16l-1.64-1.64A9 9 0 014.51 15" />
+                                        </svg>
+                                    </button>
+                                </>
+                            )}
+                        </div>
                     </div>
+                    {showSearch && hasConnection && (
+                        <div className="px-2 py-1 border-b border-border/30 flex-shrink-0">
+                            <input
+                                ref={searchInputRef}
+                                className="w-full bg-surface-400 border border-border/40 rounded px-1.5 py-0.5 text-[10px] text-text outline-none focus:border-primary-400 transition-colors"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Escape') { setShowSearch(false); setSearchQuery('') } }}
+                                placeholder="搜索文件名..."
+                            />
+                        </div>
+                    )}
                     <div className="flex-1 overflow-y-auto">
                         {!hasConnection ? (
                             <div className="flex items-center justify-center h-full text-text-dim text-[10px]">未连接</div>
@@ -430,19 +500,46 @@ const FileManager: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col flex-1 min-w-0">
-                    <div className="px-2 py-1.5 border-b border-border/30 flex-shrink-0 flex items-center gap-1.5">
-                        <button className="p-1 rounded text-text-dim hover:text-text transition-colors" onClick={goBackRemote} title="上级目录">
+                    <div className="px-2 py-1 border-b border-border/30 flex-shrink-0 flex items-center gap-1.5">
+                        <button className="p-1 rounded text-text-dim hover:text-text transition-colors flex-shrink-0" onClick={goBackRemote} title="上级目录">
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
                             </svg>
                         </button>
                         <div className="flex-1 min-w-0">
                             {hasConnection ? (
-                                <Breadcrumb path={remotePath} onNavigate={navigateRemote} sep="/" />
+                                showPathInput ? (
+                                    <input
+                                        ref={pathInputRef}
+                                        className="w-full bg-surface-400 border border-primary-400 rounded px-1.5 py-0.5 text-[10px] font-mono text-text outline-none"
+                                        value={pathInput}
+                                        onChange={(e) => setPathInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handlePathSubmit()
+                                            if (e.key === 'Escape') setShowPathInput(false)
+                                        }}
+                                        onBlur={() => setShowPathInput(false)}
+                                    />
+                                ) : (
+                                    <div
+                                        className="cursor-pointer"
+                                        onDoubleClick={() => { setPathInput(remotePath); setShowPathInput(true) }}
+                                        title="双击编辑路径"
+                                    >
+                                        <Breadcrumb path={remotePath} onNavigate={navigateRemote} sep="/" />
+                                    </div>
+                                )
                             ) : (
                                 <span className="text-text-dim text-[10px]">未连接</span>
                             )}
                         </div>
+                        {hasConnection && !showPathInput && (
+                            <button className="p-0.5 rounded text-text-dim hover:text-text transition-colors flex-shrink-0" onClick={() => { setPathInput(remotePath); setShowPathInput(true) }} title="编辑路径">
+                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16m-7 6h7" />
+                                </svg>
+                            </button>
+                        )}
                     </div>
                     <div className="flex-1 overflow-y-auto relative">
                         {!hasConnection ? (
@@ -464,13 +561,20 @@ const FileManager: React.FC = () => {
                                 </svg>
                                 加载中...
                             </div>
-                        ) : filesOnly.length === 0 ? (
+                        ) : filteredFiles.filesOnly.length === 0 && filteredFiles.directories.length === 0 ? (
                             <div className="flex items-center justify-center py-6 text-text-dim text-xs">
-                                无文件
+                                {searchQuery ? '无匹配文件' : '无文件'}
                             </div>
-                        ) : filesOnly.map((file, i) => (
-                            <FileItem key={i} file={file} isSelected={selectedRemote === file.path} onSelect={setSelectedRemote} onNavigate={navigateRemote} onContextMenu={getRemoteContextMenu} />
-                        ))}
+                        ) : (
+                            <>
+                                {filteredFiles.directories.map((file, i) => (
+                                    <FileItem key={`dir-${i}`} file={file} isSelected={selectedRemote === file.path} onSelect={setSelectedRemote} onNavigate={navigateRemote} onContextMenu={getRemoteContextMenu} />
+                                ))}
+                                {filteredFiles.filesOnly.map((file, i) => (
+                                    <FileItem key={`file-${i}`} file={file} isSelected={selectedRemote === file.path} onSelect={setSelectedRemote} onNavigate={navigateRemote} onContextMenu={getRemoteContextMenu} />
+                                ))}
+                            </>
+                        )}
                     </div>
                     <RemoteCtxOverlay />
                 </div>
