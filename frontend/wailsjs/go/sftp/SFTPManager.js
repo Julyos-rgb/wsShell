@@ -50,6 +50,10 @@ export function Mkdir(arg1) {
   return window['go']['sftp']['SFTPManager']['Mkdir'](arg1);
 }
 
+export function PickFiles() {
+  return window['go']['sftp']['SFTPManager']['PickFiles']();
+}
+
 export function Rename(arg1) {
   return window['go']['sftp']['SFTPManager']['Rename'](arg1);
 }

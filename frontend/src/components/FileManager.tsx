@@ -2,9 +2,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react'
 import {
     ListFiles, UploadFile, DownloadFile,
     DeleteFile, Mkdir, Rename, GetTransferState,
-    ResumeUpload, ResumeDownload,
+    ResumeUpload, ResumeDownload, PickFiles,
 } from '../../wailsjs/go/sftp/SFTPManager'
-import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
+import { EventsOn, EventsOff, OnFileDrop, OnFileDropOff } from '../../wailsjs/runtime/runtime'
 import { sftp } from '../../wailsjs/go/models'
 import { FileEntry } from '../types'
 import { useConnectionStore, useUIStore, useTransferStore } from '../stores/ui'
@@ -263,54 +263,58 @@ const FileManager: React.FC = () => {
         } catch (e) { console.error(e) }
     }
 
-    const handleDragOver = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true) }, [])
-    const handleDragLeave = useCallback((e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false) }, [])
-
-    const handleDrop = useCallback(async (e: React.DragEvent) => {
-        e.preventDefault(); e.stopPropagation(); setIsDragging(false)
+    const uploadLocalFiles = useCallback(async (localPaths: string[]) => {
         const sessionId = getSftpSessionId()
-        if (!sessionId) return
-        const files = e.dataTransfer?.files
-        if (!files || files.length === 0) return
+        if (!sessionId || localPaths.length === 0) return
 
-        const uploadTasks: Promise<void>[] = []
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i]
-            if (!file.name) continue
-            const localPath = (file as any).path
-            if (!localPath) continue
-            const remoteFilePath = remotePath === '/' ? '/' + file.name : remotePath + '/' + file.name
+        for (const localPath of localPaths) {
+            const fileName = localPath.split(/[/\\]/).pop() || 'unknown'
+            const remoteFilePath = remotePath === '/' ? '/' + fileName : remotePath + '/' + fileName
 
-            const uploadOne = async () => {
-                try {
-                    const state = await GetTransferState({ sessionId, localPath, remotePath: remoteFilePath, direction: 'upload' } as sftp.GetTransferStateRequest)
-                    if (state.canResume) {
-                        const confirmed = await confirm({
-                            title: '续传确认',
-                            message: `检测到部分文件，是否续传 ${file.name}？`,
-                            confirmText: '续传',
-                        })
-                        if (confirmed) {
-                            await ResumeUpload({ sessionId, localPath, remotePath: remoteFilePath, offset: -1 } as sftp.ResumeUploadRequest)
-                            return
-                        }
+            try {
+                const state = await GetTransferState({ sessionId, localPath, remotePath: remoteFilePath, direction: 'upload' } as sftp.GetTransferStateRequest)
+                if (state.canResume) {
+                    const confirmed = await confirm({
+                        title: '续传确认',
+                        message: `检测到部分文件，是否续传 ${fileName}？`,
+                        confirmText: '续传',
+                    })
+                    if (confirmed) {
+                        await ResumeUpload({ sessionId, localPath, remotePath: remoteFilePath, offset: -1 } as sftp.ResumeUploadRequest)
+                        continue
                     }
-                } catch (e) { console.error(e) }
-                const taskId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-                addTransfer({ id: taskId, type: 'upload', localPath, remotePath: remoteFilePath, progress: 0, total: file.size, written: 0, status: 'pending' })
-                try {
-                    await UploadFile({ sessionId, localPath, remotePath: remoteFilePath } as sftp.UploadRequest)
-                    updateTransfer(taskId, { status: 'completed', progress: 100 })
-                } catch (err: any) {
-                    updateTransfer(taskId, { status: 'error', error: String(err) })
                 }
+            } catch (e) { console.error(e) }
+            const taskId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+            addTransfer({ id: taskId, type: 'upload', localPath, remotePath: remoteFilePath, progress: 0, total: 0, written: 0, status: 'pending' })
+            try {
+                await UploadFile({ sessionId, localPath, remotePath: remoteFilePath } as sftp.UploadRequest)
+                updateTransfer(taskId, { status: 'completed', progress: 100 })
+            } catch (err: any) {
+                updateTransfer(taskId, { status: 'error', error: String(err) })
             }
-            uploadTasks.push(uploadOne())
         }
-
-        await Promise.all(uploadTasks)
         loadRemoteFiles()
     }, [getSftpSessionId, remotePath, addTransfer, updateTransfer, loadRemoteFiles])
+
+    useEffect(() => {
+        OnFileDrop((_x: number, _y: number, paths: string[]) => {
+            setIsDragging(false)
+            if (!paths || paths.length === 0) return
+            uploadLocalFiles(paths)
+        }, true)
+        return () => { OnFileDropOff() }
+    }, [uploadLocalFiles])
+
+    const handleUploadClick = useCallback(async () => {
+        try {
+            const resp = await PickFiles()
+            if (resp.error) { console.error(resp.error); return }
+            if (resp.paths && resp.paths.length > 0) {
+                await uploadLocalFiles(resp.paths)
+            }
+        } catch (e) { console.error(e) }
+    }, [uploadLocalFiles])
 
     const navigateRemote = (path: string) => { setRemoteHistory((prev) => [...prev, remotePath]); loadRemoteFiles(path) }
 
@@ -376,9 +380,7 @@ const FileManager: React.FC = () => {
             <div
                 ref={dropZoneRef}
                 className={`flex-1 flex overflow-hidden transition-colors ${isDragging ? 'bg-primary-500/5' : ''}`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
+                style={{'--wails-drop-target': 'filemanager'} as React.CSSProperties}
             >
                 <div className="flex flex-col border-r border-border/30 flex-shrink-0" style={{ width: '35%' }}>
                     <div className="px-2 py-1.5 border-b border-border/30 flex-shrink-0 flex items-center gap-1">
@@ -524,6 +526,12 @@ const FileManager: React.FC = () => {
                             <span>删除</span>
                         </button>
                         <div className="w-px h-3.5 bg-border/40 mx-1" />
+                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-accent-green hover:bg-accent-green/10 transition-colors" onClick={handleUploadClick} title="上传文件">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M7 13l5-5m0 0l5 5m-5-5v12" />
+                            </svg>
+                            <span>上传</span>
+                        </button>
                         <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-accent-blue hover:bg-accent-blue/10 transition-colors disabled:opacity-30" onClick={handleDownload} disabled={!selectedRemote} title="下载选中文件">
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 13l-5 5m0 0l-5-5m5 5V6" />

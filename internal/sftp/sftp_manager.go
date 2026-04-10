@@ -861,3 +861,26 @@ func (m *SFTPManager) LocalRename(req LocalRenameRequest) (LocalRenameResponse, 
 	}
 	return LocalRenameResponse{Success: true}, nil
 }
+
+type PickFilesResponse struct {
+	Paths []string `json:"paths"`
+	Error string   `json:"error,omitempty"`
+}
+
+func (m *SFTPManager) PickFiles() (PickFilesResponse, error) {
+	if m.Ctx == nil {
+		return PickFilesResponse{Error: "context not initialized"}, nil
+	}
+
+	path, err := runtime.OpenFileDialog(m.Ctx, runtime.OpenDialogOptions{
+		Title: "选择要上传的文件",
+	})
+	if err != nil {
+		return PickFilesResponse{Error: err.Error()}, nil
+	}
+	if path == "" {
+		return PickFilesResponse{Paths: []string{}}, nil
+	}
+
+	return PickFilesResponse{Paths: []string{path}}, nil
+}

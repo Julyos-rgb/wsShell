@@ -1457,6 +1457,20 @@ export namespace sftp {
 	        this.error = source["error"];
 	    }
 	}
+	export class PickFilesResponse {
+	    paths: string[];
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PickFilesResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.paths = source["paths"];
+	        this.error = source["error"];
+	    }
+	}
 	export class RenameRequest {
 	    sessionId: string;
 	    oldPath: string;

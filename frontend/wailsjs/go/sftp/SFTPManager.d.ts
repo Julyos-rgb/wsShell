@@ -26,6 +26,8 @@ export function LocalRename(arg1:sftp.LocalRenameRequest):Promise<sftp.LocalRena
 
 export function Mkdir(arg1:sftp.MkdirRequest):Promise<sftp.MkdirResponse>;
 
+export function PickFiles():Promise<sftp.PickFilesResponse>;
+
 export function Rename(arg1:sftp.RenameRequest):Promise<sftp.RenameResponse>;
 
 export function ResumeDownload(arg1:sftp.ResumeDownloadRequest):Promise<sftp.ResumeDownloadResponse>;
