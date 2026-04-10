@@ -307,16 +307,14 @@ const XTerminal: React.FC = () => {
               onClick={() => handleTabActivate(tab.id)}
             >
               <span className="truncate max-w-[120px]">{tab.label}</span>
-              {terminalTabs.length > 1 && (
-                <button
-                  className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-danger transition-all ml-1"
-                  onClick={(e) => { e.stopPropagation(); handleTabClose(tab.id) }}
-                >
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
+              <button
+                className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-danger transition-all ml-1"
+                onClick={(e) => { e.stopPropagation(); handleTabClose(tab.id) }}
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
           ))}
           <button

@@ -67,7 +67,7 @@ const AddServerDialog: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={handleClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div
         className="bg-surface-300 rounded-lg shadow-glass w-[400px] border border-border/60"
         onClick={(e) => e.stopPropagation()}

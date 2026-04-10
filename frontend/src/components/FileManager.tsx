@@ -161,18 +161,19 @@ const FileManager: React.FC = () => {
     useEffect(() => {
         const handleUploadProgress = (data: any) => {
             const taskId = `upload-${data.localPath}-${data.remotePath}`
-            const existing = transfers.find(t => t.id === taskId)
-            if (!existing) return
-            updateTransfer(taskId, {
+            const updates: Record<string, any> = {
                 progress: data.progress,
                 written: data.written,
                 total: data.total,
-                status: data.progress >= 100 ? 'completed' : existing.status,
-            })
+            }
+            if (data.progress >= 100) {
+                updates.status = 'completed'
+            }
+            useTransferStore.getState().updateTransfer(taskId, updates)
         }
         EventsOn('sftp:upload:progress', handleUploadProgress)
         return () => { EventsOff('sftp:upload:progress') }
-    }, [transfers, updateTransfer])
+    }, [])
 
     const handleDownload = async () => {
         if (!selectedRemote || !getSftpSessionId()) return
@@ -271,34 +272,43 @@ const FileManager: React.FC = () => {
         if (!sessionId) return
         const files = e.dataTransfer?.files
         if (!files || files.length === 0) return
+
+        const uploadTasks: Promise<void>[] = []
         for (let i = 0; i < files.length; i++) {
             const file = files[i]
             if (!file.name) continue
             const localPath = (file as any).path
-            const remoteFilePath = remotePath + '/' + file.name
-            try {
-                const state = await GetTransferState({ sessionId, localPath, remotePath: remoteFilePath, direction: 'upload' } as sftp.GetTransferStateRequest)
-                if (state.canResume) {
-                    const confirmed = await confirm({
-                        title: '续传确认',
-                        message: `检测到部分文件，是否续传 ${file.name}？`,
-                        confirmText: '续传',
-                    })
-                    if (confirmed) {
-                        await ResumeUpload({ sessionId, localPath, remotePath: remoteFilePath, offset: -1 } as sftp.ResumeUploadRequest)
-                        continue
+            if (!localPath) continue
+            const remoteFilePath = remotePath === '/' ? '/' + file.name : remotePath + '/' + file.name
+
+            const uploadOne = async () => {
+                try {
+                    const state = await GetTransferState({ sessionId, localPath, remotePath: remoteFilePath, direction: 'upload' } as sftp.GetTransferStateRequest)
+                    if (state.canResume) {
+                        const confirmed = await confirm({
+                            title: '续传确认',
+                            message: `检测到部分文件，是否续传 ${file.name}？`,
+                            confirmText: '续传',
+                        })
+                        if (confirmed) {
+                            await ResumeUpload({ sessionId, localPath, remotePath: remoteFilePath, offset: -1 } as sftp.ResumeUploadRequest)
+                            return
+                        }
                     }
+                } catch (e) { console.error(e) }
+                const taskId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                addTransfer({ id: taskId, type: 'upload', localPath, remotePath: remoteFilePath, progress: 0, total: file.size, written: 0, status: 'pending' })
+                try {
+                    await UploadFile({ sessionId, localPath, remotePath: remoteFilePath } as sftp.UploadRequest)
+                    updateTransfer(taskId, { status: 'completed', progress: 100 })
+                } catch (err: any) {
+                    updateTransfer(taskId, { status: 'error', error: String(err) })
                 }
-            } catch (e) { console.error(e) }
-            const taskId = `upload-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-            addTransfer({ id: taskId, type: 'upload', localPath, remotePath: remoteFilePath, progress: 0, total: file.size, written: 0, status: 'pending' })
-            try {
-                await UploadFile({ sessionId, localPath, remotePath: remoteFilePath } as sftp.UploadRequest)
-                updateTransfer(taskId, { status: 'completed', progress: 100 })
-            } catch (err: any) {
-                updateTransfer(taskId, { status: 'error', error: String(err) })
             }
+            uploadTasks.push(uploadOne())
         }
+
+        await Promise.all(uploadTasks)
         loadRemoteFiles()
     }, [getSftpSessionId, remotePath, addTransfer, updateTransfer, loadRemoteFiles])
 
