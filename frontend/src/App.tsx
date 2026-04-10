@@ -273,50 +273,49 @@ function App() {
               : undefined,
           }}
         >
-          {isTerminal && (
-            <div
-              className="min-h-0 overflow-hidden border-b border-border/20"
-              style={filePanelVisible ? undefined : { flex: '1 1 0' }}
-            >
-              <Terminal />
+          <div
+            className="min-h-0 overflow-hidden border-b border-border/20"
+            style={{
+              ...(!isTerminal ? { display: 'none' } : filePanelVisible ? {} : { flex: '1 1 0' }),
+            }}
+          >
+            <Terminal />
+          </div>
+          <div
+            className="cursor-row-resize flex items-center justify-center hover:bg-primary-500/10 transition-colors group relative"
+            style={{ display: isTerminal && filePanelVisible ? undefined : 'none' }}
+            onMouseDown={startDragRightRow}
+          >
+            <div className="w-12 h-[2px] rounded-full bg-border/30 group-hover:bg-primary-400/70 transition-colors" />
+            <div className="absolute right-1 top-1/2 -translate-y-1/2 text-text-dim/30 group-hover:text-text-dim/60 transition-all">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 8h16M4 16h16" />
+              </svg>
             </div>
-          )}
-          {isTerminal && filePanelVisible && (
-            <div
-              className="cursor-row-resize flex items-center justify-center hover:bg-primary-500/10 transition-colors group relative"
-              onMouseDown={startDragRightRow}
-            >
-              <div className="w-12 h-[2px] rounded-full bg-border/30 group-hover:bg-primary-400/70 transition-colors" />
-              <div className="absolute right-1 top-1/2 -translate-y-1/2 text-text-dim/30 group-hover:text-text-dim/60 transition-all">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 8h16M4 16h16" />
-                </svg>
-              </div>
+          </div>
+          <div
+            className="flex-shrink-0 flex items-center justify-center hover:bg-primary-500/10 transition-colors group cursor-pointer"
+            style={{ height: '12px', display: isTerminal && !filePanelVisible ? undefined : 'none' }}
+            onClick={() => setFilePanelVisible(true)}
+          >
+            <div className="text-text-dim/30 group-hover:text-text-dim/60 transition-all">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+              </svg>
             </div>
-          )}
-          {isTerminal && !filePanelVisible && (
-            <div
-              className="flex-shrink-0 flex items-center justify-center hover:bg-primary-500/10 transition-colors group cursor-pointer"
-              style={{ height: '12px' }}
-              onClick={() => setFilePanelVisible(true)}
-            >
-              <div className="text-text-dim/30 group-hover:text-text-dim/60 transition-all">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
-                </svg>
-              </div>
-            </div>
-          )}
-          {isTerminal && filePanelVisible && (
-            <div className="min-h-0 overflow-hidden border-t border-border/20">
-              <FileManager />
-            </div>
-          )}
-          {!isTerminal && (
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <VncViewer />
-            </div>
-          )}
+          </div>
+          <div
+            className="min-h-0 overflow-hidden border-t border-border/20"
+            style={{ display: isTerminal && filePanelVisible ? undefined : 'none' }}
+          >
+            <FileManager />
+          </div>
+          <div
+            className="flex-1 min-h-0 overflow-hidden"
+            style={{ display: isTerminal ? 'none' : undefined }}
+          >
+            <VncViewer />
+          </div>
         </div>
       </div>
 

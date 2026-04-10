@@ -132,11 +132,13 @@ export const useTerminalTabStore = create<TerminalTabState>((set, get) => ({
   terminalTabs: [],
   activeTerminalTabId: null,
 
-  addTerminalTab: (tab) =>
-    set((state) => ({
+  addTerminalTab: (tab) => {
+    useUIStore.getState().setActiveServerId(tab.serverId)
+    return set((state) => ({
       terminalTabs: [...state.terminalTabs, tab],
       activeTerminalTabId: tab.id,
-    })),
+    }))
+  },
 
   removeTerminalTab: (tabId) =>
     set((state) => {
@@ -147,6 +149,10 @@ export const useTerminalTabStore = create<TerminalTabState>((set, get) => ({
         if (newTabs.length > 0) {
           const newIdx = Math.min(idx, newTabs.length - 1)
           newActiveId = newTabs[newIdx].id
+          const newActiveTab = newTabs[newIdx]
+          if (newActiveTab) {
+            useUIStore.getState().setActiveServerId(newActiveTab.serverId)
+          }
         } else {
           newActiveId = null
         }
@@ -154,7 +160,11 @@ export const useTerminalTabStore = create<TerminalTabState>((set, get) => ({
       return { terminalTabs: newTabs, activeTerminalTabId: newActiveId }
     }),
 
-  setActiveTerminalTab: (tabId) => set({ activeTerminalTabId: tabId }),
+  setActiveTerminalTab: (tabId) => {
+    const tab = get().terminalTabs.find(t => t.id === tabId)
+    if (tab) useUIStore.getState().setActiveServerId(tab.serverId)
+    set({ activeTerminalTabId: tabId })
+  },
 
   updateTerminalTab: (tabId, updates) =>
     set((state) => ({

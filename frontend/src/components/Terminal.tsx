@@ -4,7 +4,7 @@ import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 import { useUIStore, useConnectionStore, useTerminalTabStore } from '../stores/ui'
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
-import { WriteToSession, ResizeTerminal, CreateShell } from '../../wailsjs/go/ssh/SSHService'
+import { WriteToSession, ResizeTerminal, CreateShell, Disconnect as SSHDisconnect } from '../../wailsjs/go/ssh/SSHService'
 import AutocompletePopup from './AutocompletePopup'
 import { useDialog } from './Dialog'
 
@@ -225,18 +225,32 @@ const XTerminal: React.FC = () => {
     terminalTabs, activeTerminalTabId,
     setActiveTerminalTab, removeTerminalTab, addTerminalTab,
   } = useTerminalTabStore()
-  const { prompt: dialogPrompt } = useDialog()
   const appVisible = activeTab === 'terminal'
+  const { prompt: dialogPrompt } = useDialog()
+
+  const handleTabActivate = useCallback((tabId: string) => {
+    setActiveTerminalTab(tabId)
+  }, [setActiveTerminalTab])
+
+  const handleTabClose = useCallback(async (tabId: string) => {
+    const tab = useTerminalTabStore.getState().terminalTabs.find(t => t.id === tabId)
+    if (!tab) return
+    const isMainTab = tabId.endsWith('-main')
+    if (!isMainTab) {
+      try { await SSHDisconnect(tab.sessionId) } catch (e) { console.warn('Disconnect shell failed:', e) }
+    }
+    removeTerminalTab(tabId)
+  }, [removeTerminalTab])
 
   const handleNewShell = async () => {
     const connEntries = Object.entries(connections)
     if (connEntries.length === 0) return
 
-    let targetServerId = activeServerId
+    let targetId = activeServerId
 
-    if (!targetServerId || !connections[targetServerId]) {
+    if (!targetId || !connections[targetId]) {
       if (connEntries.length === 1) {
-        targetServerId = connEntries[0][0]
+        targetId = connEntries[0][0]
       } else {
         const serverNames = connEntries.map(([_id, c]) => c.serverName)
         const choice = await dialogPrompt({
@@ -248,21 +262,23 @@ const XTerminal: React.FC = () => {
         if (choice === null) return
         const entry = connEntries.find(([_id, c]) => c.serverName === choice)
         if (!entry) return
-        targetServerId = entry[0]
+        targetId = entry[0]
       }
     }
 
-    const conn = connections[targetServerId]
+    const conn = connections[targetId]
     if (!conn) return
 
     try {
       const resp = await CreateShell({ baseSessionId: conn.sessionId })
       if (resp.success && resp.sessionId) {
+        const allTabs = useTerminalTabStore.getState().terminalTabs
+        const shellCount = allTabs.filter(t => t.serverId === targetId && !t.id.endsWith('-main')).length
         addTerminalTab({
-          id: `${targetServerId}-${resp.sessionId}`,
-          serverId: targetServerId,
+          id: `${targetId}-${resp.sessionId}`,
+          serverId: targetId,
           sessionId: resp.sessionId,
-          label: `Shell ${terminalTabs.filter(t => t.serverId === targetServerId).length + 1}`,
+          label: `${conn.serverName} #${shellCount + 1}`,
           serverName: conn.serverName,
           connected: true,
         })
@@ -278,40 +294,42 @@ const XTerminal: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex items-center bg-surface-400 border-b border-border/40 px-1 flex-shrink-0">
-        {terminalTabs.map((tab) => (
-          <div
-            key={tab.id}
-            className={`group flex items-center gap-1.5 px-3 py-1.5 text-xs cursor-pointer border-b-2 transition-all ${
-              tab.id === activeTerminalTabId
-                ? 'text-primary-300 border-primary-400 bg-surface-300/50'
-                : 'text-text-dim border-transparent hover:text-text-muted hover:bg-surface-50/30'
-            }`}
-            onClick={() => setActiveTerminalTab(tab.id)}
+      {terminalTabs.length > 0 && (
+        <div className="flex items-center bg-surface-400 border-b border-border/40 px-1 flex-shrink-0">
+          {terminalTabs.map((tab) => (
+            <div
+              key={tab.id}
+              className={`group flex items-center gap-1.5 px-3 py-1.5 text-xs cursor-pointer border-b-2 transition-all ${
+                tab.id === activeTerminalTabId
+                  ? 'text-primary-300 border-primary-400 bg-surface-300/50'
+                  : 'text-text-dim border-transparent hover:text-text-muted hover:bg-surface-50/30'
+              }`}
+              onClick={() => handleTabActivate(tab.id)}
+            >
+              <span className="truncate max-w-[120px]">{tab.label}</span>
+              {terminalTabs.length > 1 && (
+                <button
+                  className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-danger transition-all ml-1"
+                  onClick={(e) => { e.stopPropagation(); handleTabClose(tab.id) }}
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            className="px-2 py-1 text-text-dim hover:text-primary-300 transition-colors"
+            onClick={handleNewShell}
+            title="新建 Shell"
           >
-            <span className="truncate max-w-[120px]">{tab.label}</span>
-            {terminalTabs.length > 1 && (
-              <button
-                className="opacity-0 group-hover:opacity-100 text-text-dim hover:text-danger transition-all ml-1"
-                onClick={(e) => { e.stopPropagation(); removeTerminalTab(tab.id) }}
-              >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
-        ))}
-        <button
-          className="px-2 py-1 text-text-dim hover:text-primary-300 transition-colors"
-          onClick={handleNewShell}
-          title="新建 Shell"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
-      </div>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 min-h-0 relative">
         {!hasActiveConnection ? (

@@ -137,12 +137,6 @@ const VncViewer: React.FC = () => {
     }
   }, [cleanup])
 
-  useEffect(() => {
-    if (!activeServerId) {
-      disconnect()
-    }
-  }, [activeServerId, disconnect])
-
   const showPasswordInput = activeServer?.vncEnabled && status === 'idle'
   const vncPort = activeServer?.vncPort || 5900
 

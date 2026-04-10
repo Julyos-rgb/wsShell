@@ -273,10 +273,18 @@ const Sidebar: React.FC = () => {
         clickTimerRef.current = null
         setActiveServerId(server.id)
         if (server.id in connections) {
-          setActiveTab('terminal')
-          const tabs = useTerminalTabStore.getState().terminalTabs
-          const serverTab = tabs.find(t => t.serverId === server.id)
-          if (serverTab) useTerminalTabStore.getState().setActiveTerminalTab(serverTab.id)
+          const currentTab = useUIStore.getState().activeTab
+          if (currentTab === 'terminal') {
+            const tabStore = useTerminalTabStore.getState()
+            const currentActive = tabStore.activeTerminalTabId
+            const isAlreadyActive = currentActive && tabStore.terminalTabs.some(
+              t => t.id === currentActive && t.serverId === server.id
+            )
+            if (!isAlreadyActive) {
+              const serverTab = tabStore.terminalTabs.find(t => t.serverId === server.id)
+              if (serverTab) tabStore.setActiveTerminalTab(serverTab.id)
+            }
+          }
         }
       }, 250)
     }
