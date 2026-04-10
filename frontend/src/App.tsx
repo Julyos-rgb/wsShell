@@ -7,6 +7,7 @@ import AddServerDialog from './components/AddServerDialog'
 import MonitorPanel from './components/MonitorPanel'
 import CommandPalette, { usePaletteStore } from './components/CommandPalette'
 import { DialogProvider } from './components/Dialog'
+import { ToastProvider } from './components/Toast'
 import { useUIStore, useConnectionStore, useTerminalTabStore } from './stores/ui'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
@@ -182,6 +183,7 @@ function App() {
 
   return (
     <DialogProvider>
+    <ToastProvider>
     <div className="flex flex-col h-screen w-screen bg-surface-400 text-text overflow-hidden select-none">
       <div className="h-10 flex items-center px-4 border-b border-border/30 flex-shrink-0 bg-surface-400">
         <div className="flex items-center gap-1">
@@ -326,6 +328,7 @@ function App() {
       <AddServerDialog />
       <CommandPalette />
     </div>
+    </ToastProvider>
     </DialogProvider>
   )
 }

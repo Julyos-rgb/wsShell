@@ -28,6 +28,10 @@ export function Mkdir(arg1:sftp.MkdirRequest):Promise<sftp.MkdirResponse>;
 
 export function PickFiles():Promise<sftp.PickFilesResponse>;
 
+export function PickSaveFile(arg1:sftp.PickSaveFileRequest):Promise<sftp.PickSaveFileResponse>;
+
+export function ReadRemoteFile(arg1:sftp.ReadRemoteFileRequest):Promise<sftp.ReadRemoteFileResponse>;
+
 export function Rename(arg1:sftp.RenameRequest):Promise<sftp.RenameResponse>;
 
 export function ResumeDownload(arg1:sftp.ResumeDownloadRequest):Promise<sftp.ResumeDownloadResponse>;

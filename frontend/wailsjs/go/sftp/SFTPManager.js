@@ -54,6 +54,14 @@ export function PickFiles() {
   return window['go']['sftp']['SFTPManager']['PickFiles']();
 }
 
+export function PickSaveFile(arg1) {
+  return window['go']['sftp']['SFTPManager']['PickSaveFile'](arg1);
+}
+
+export function ReadRemoteFile(arg1) {
+  return window['go']['sftp']['SFTPManager']['ReadRemoteFile'](arg1);
+}
+
 export function Rename(arg1) {
   return window['go']['sftp']['SFTPManager']['Rename'](arg1);
 }

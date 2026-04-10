@@ -433,12 +433,41 @@ func (m *SFTPManager) DeleteFile(req DeleteFileRequest) (DeleteFileResponse, err
 		return DeleteFileResponse{Success: false, Error: "SFTP session not connected"}, nil
 	}
 
-	err := client.Remove(req.Path)
+	stat, err := client.Stat(req.Path)
+	if err != nil {
+		return DeleteFileResponse{Success: false, Error: err.Error()}, nil
+	}
+
+	if stat.IsDir() {
+		err = m.removeRemoteDir(client, req.Path)
+	} else {
+		err = client.Remove(req.Path)
+	}
 	if err != nil {
 		return DeleteFileResponse{Success: false, Error: err.Error()}, nil
 	}
 
 	return DeleteFileResponse{Success: true}, nil
+}
+
+func (m *SFTPManager) removeRemoteDir(client *sftp.Client, path string) error {
+	entries, err := client.ReadDir(path)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		fullPath := filepath.Join(path, entry.Name())
+		if entry.IsDir() {
+			if err := m.removeRemoteDir(client, fullPath); err != nil {
+				return err
+			}
+		} else {
+			if err := client.Remove(fullPath); err != nil {
+				return err
+			}
+		}
+	}
+	return client.RemoveDirectory(path)
 }
 
 type MkdirRequest struct {
@@ -883,4 +912,79 @@ func (m *SFTPManager) PickFiles() (PickFilesResponse, error) {
 	}
 
 	return PickFilesResponse{Paths: paths}, nil
+}
+
+type ReadRemoteFileRequest struct {
+	SessionID string `json:"sessionId"`
+	Path      string `json:"path"`
+	MaxSize   int64  `json:"maxSize"`
+}
+
+type ReadRemoteFileResponse struct {
+	Success bool   `json:"success"`
+	Content string `json:"content,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+func (m *SFTPManager) ReadRemoteFile(req ReadRemoteFileRequest) (ReadRemoteFileResponse, error) {
+	m.mu.RLock()
+	client, ok := m.clients[req.SessionID]
+	m.mu.RUnlock()
+
+	if !ok {
+		return ReadRemoteFileResponse{Success: false, Error: "SFTP session not connected"}, nil
+	}
+
+	maxSize := req.MaxSize
+	if maxSize <= 0 {
+		maxSize = 512 * 1024
+	}
+
+	remoteFile, err := client.Open(req.Path)
+	if err != nil {
+		return ReadRemoteFileResponse{Success: false, Error: err.Error()}, nil
+	}
+	defer remoteFile.Close()
+
+	stat, err := remoteFile.Stat()
+	if err != nil {
+		return ReadRemoteFileResponse{Success: false, Error: err.Error()}, nil
+	}
+
+	if stat.Size() > maxSize {
+		return ReadRemoteFileResponse{Success: false, Error: fmt.Sprintf("file too large (%d bytes, max %d)", stat.Size(), maxSize)}, nil
+	}
+
+	buf := make([]byte, stat.Size())
+	n, err := io.ReadFull(remoteFile, buf)
+	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
+		return ReadRemoteFileResponse{Success: false, Error: err.Error()}, nil
+	}
+
+	return ReadRemoteFileResponse{Success: true, Content: string(buf[:n])}, nil
+}
+
+type PickSaveFileRequest struct {
+	DefaultFilename string `json:"defaultFilename"`
+}
+
+type PickSaveFileResponse struct {
+	Path  string `json:"path"`
+	Error string `json:"error,omitempty"`
+}
+
+func (m *SFTPManager) PickSaveFile(req PickSaveFileRequest) (PickSaveFileResponse, error) {
+	if m.Ctx == nil {
+		return PickSaveFileResponse{Error: "context not initialized"}, nil
+	}
+
+	path, err := runtime.SaveFileDialog(m.Ctx, runtime.SaveDialogOptions{
+		Title:           "保存文件",
+		DefaultFilename: req.DefaultFilename,
+	})
+	if err != nil {
+		return PickSaveFileResponse{Error: err.Error()}, nil
+	}
+
+	return PickSaveFileResponse{Path: path}, nil
 }

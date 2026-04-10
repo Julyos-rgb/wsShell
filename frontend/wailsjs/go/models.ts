@@ -1471,6 +1471,64 @@ export namespace sftp {
 	        this.error = source["error"];
 	    }
 	}
+	export class PickSaveFileRequest {
+	    defaultFilename: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PickSaveFileRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.defaultFilename = source["defaultFilename"];
+	    }
+	}
+	export class PickSaveFileResponse {
+	    path: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PickSaveFileResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.error = source["error"];
+	    }
+	}
+	export class ReadRemoteFileRequest {
+	    sessionId: string;
+	    path: string;
+	    maxSize: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReadRemoteFileRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sessionId = source["sessionId"];
+	        this.path = source["path"];
+	        this.maxSize = source["maxSize"];
+	    }
+	}
+	export class ReadRemoteFileResponse {
+	    success: boolean;
+	    content?: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ReadRemoteFileResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.content = source["content"];
+	        this.error = source["error"];
+	    }
+	}
 	export class RenameRequest {
 	    sessionId: string;
 	    oldPath: string;
