@@ -1,12 +1,11 @@
 {
     "name": "wsShell",
     "outputFilename": "wsShell",
-    "frontend": {
-        "dir": "frontend",
-        "install": "npm install",
-        "build": "npm run build",
-        "dev": "npm run dev"
-    },
+    "frontend:dir": "frontend",
+    "frontend:install": "npm install",
+    "frontend:build": "npm run build",
+    "frontend:dev:watcher": "npm run dev",
+    "frontend:dev:serverUrl": "auto",
     "wails": {
         "buildMode": "default"
     },
