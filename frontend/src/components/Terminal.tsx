@@ -3,7 +3,7 @@ import { Terminal } from 'xterm'
 import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 import { useUIStore, useConnectionStore, useTerminalTabStore } from '../stores/ui'
-import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime'
+import { EventsOn, EventsOff, ClipboardSetText, ClipboardGetText } from '../../wailsjs/runtime/runtime'
 import { WriteToSession, ResizeTerminal, CreateShell, Disconnect as SSHDisconnect } from '../../wailsjs/go/ssh/SSHService'
 import AutocompletePopup from './AutocompletePopup'
 import { useDialog } from './Dialog'
@@ -115,6 +115,46 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active, 
       try { fitAddon.fit() } catch {}
     })
 
+    const handleCopy = async () => {
+      const selection = term.getSelection()
+      if (selection) {
+        await ClipboardSetText(selection)
+      }
+    }
+
+    const handlePaste = async () => {
+      try {
+        const text = await ClipboardGetText()
+        if (text) {
+          WriteToSession({ sessionId, data: text })
+        }
+      } catch {}
+    }
+
+    const customKeyEventHandler = (event: KeyboardEvent): boolean => {
+      if (event.ctrlKey && event.shiftKey && (event.key === 'C' || event.key === 'c')) {
+        handleCopy()
+        return false
+      }
+      if (event.ctrlKey && event.shiftKey && (event.key === 'V' || event.key === 'v')) {
+        handlePaste()
+        return false
+      }
+      return true
+    }
+    term.attachCustomKeyEventHandler(customKeyEventHandler)
+
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault()
+      const hasSelection = !!term.getSelection()
+      if (hasSelection) {
+        handleCopy()
+      } else {
+        handlePaste()
+      }
+    }
+    containerRef.current.addEventListener('contextmenu', handleContextMenu)
+
     term.onData((data: string) => {
       WriteToSession({ sessionId, data })
       if (data === '\r' || data === '\n') {
@@ -152,6 +192,7 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active, 
     return () => {
       EventsOff(`ssh:${sessionId}:stdout`)
       EventsOff(`ssh:${sessionId}:stderr`)
+      containerRef.current?.removeEventListener('contextmenu', handleContextMenu)
       ro.disconnect()
       term.dispose()
       termRef.current = null

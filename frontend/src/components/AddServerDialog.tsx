@@ -17,13 +17,19 @@ const AddServerDialog: React.FC = () => {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showVnc, setShowVnc] = useState(false)
+  const [portText, setPortText] = useState('')
+  const [vncPortText, setVncPortText] = useState('')
 
   useEffect(() => {
     if (editingServer) {
       setForm({ ...editingServer })
+      setPortText(String(editingServer.port || ''))
+      setVncPortText(String(editingServer.vncPort || ''))
       setShowVnc(editingServer.vncEnabled || false)
     } else {
       setForm({ ...emptyServer })
+      setPortText('')
+      setVncPortText('')
       setShowVnc(false)
     }
     setError('')
@@ -45,12 +51,18 @@ const AddServerDialog: React.FC = () => {
     setSaving(true)
     setError('')
 
+    const saveForm = {
+      ...form,
+      port: parseInt(portText) || 0,
+      vncPort: parseInt(vncPortText) || 0,
+    }
+
     try {
       if (editingServer) {
-        const resp = await UpdateServer({ server: form } as any)
+        const resp = await UpdateServer({ server: saveForm } as any)
         if (!resp.success) { setError(resp.error || '保存失败'); setSaving(false); return }
       } else {
-        const resp = await AddServer({ server: form } as any)
+        const resp = await AddServer({ server: saveForm } as any)
         if (!resp.success) { setError(resp.error || '添加失败'); setSaving(false); return }
       }
       const result = await GetServers()
@@ -64,6 +76,16 @@ const AddServerDialog: React.FC = () => {
 
   const updateField = <K extends keyof ServerConfig>(key: K, value: ServerConfig[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const handlePortChange = (value: string) => {
+    const filtered = value.replace(/[^0-9]/g, '')
+    setPortText(filtered)
+  }
+
+  const handleVncPortChange = (value: string) => {
+    const filtered = value.replace(/[^0-9]/g, '')
+    setVncPortText(filtered)
   }
 
   return (
@@ -87,7 +109,7 @@ const AddServerDialog: React.FC = () => {
               <input className="input-field text-xs" value={form.name} onChange={(e) => updateField('name', e.target.value)} placeholder="名称" />
             </div>
             <div>
-              <input type="number" className="input-field text-xs font-mono" value={form.port} onChange={(e) => updateField('port', parseInt(e.target.value) || 22)} placeholder="端口" />
+              <input type="text" inputMode="numeric" className="input-field text-xs font-mono" value={portText} onChange={(e) => handlePortChange(e.target.value)} placeholder="端口" />
             </div>
           </div>
 
@@ -132,7 +154,7 @@ const AddServerDialog: React.FC = () => {
               </label>
               {form.vncEnabled && (
                 <div className="grid grid-cols-2 gap-2">
-                  <input type="number" className="input-field text-xs font-mono" value={form.vncPort} onChange={(e) => updateField('vncPort', parseInt(e.target.value) || 5900)} placeholder="VNC 端口" />
+                  <input type="text" inputMode="numeric" className="input-field text-xs font-mono" value={vncPortText} onChange={(e) => handleVncPortChange(e.target.value)} placeholder="VNC 端口" />
                   <input type="password" className="input-field text-xs" value={form.vncPassword} onChange={(e) => updateField('vncPassword', e.target.value)} placeholder="VNC 密码" />
                 </div>
               )}

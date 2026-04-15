@@ -138,12 +138,6 @@ func (c *ConfigManager) AddServer(req AddServerRequest) (AddServerResponse, erro
 	if s.ID == "" {
 		s.ID = fmt.Sprintf("%d", time.Now().UnixNano())
 	}
-	if s.Port == 0 {
-		s.Port = 22
-	}
-	if s.VNCPort == 0 {
-		s.VNCPort = 5900
-	}
 
 	if err := encryptSensitiveFields(&s); err != nil {
 		return AddServerResponse{Success: false, Error: err.Error()}, nil

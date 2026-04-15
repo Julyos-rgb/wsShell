@@ -134,12 +134,6 @@ func (r *sqliteServerRepository) Save(s ServerRow) error {
 	if s.ID == "" {
 		s.ID = fmt.Sprintf("%d", time.Now().UnixNano())
 	}
-	if s.Port == 0 {
-		s.Port = 22
-	}
-	if s.VNCPort == 0 {
-		s.VNCPort = 5900
-	}
 
 	tagsJSON, _ := json.Marshal(s.Tags)
 	if tagsJSON == nil {
