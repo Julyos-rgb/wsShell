@@ -91,7 +91,7 @@ const AddServerDialog: React.FC = () => {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <div
-        className="bg-surface-300 rounded-lg shadow-glass w-[400px] border border-border/60"
+        className="bg-surface-300 rounded-lg shadow-glass w-full max-w-[400px] mx-4 border border-border/60"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
@@ -105,10 +105,10 @@ const AddServerDialog: React.FC = () => {
 
         <div className="p-4 space-y-3">
           <div className="grid grid-cols-3 gap-2">
-            <div className="col-span-2">
+            <div className="col-span-2 min-w-0">
               <input className="input-field text-xs" value={form.name} onChange={(e) => updateField('name', e.target.value)} placeholder="名称" />
             </div>
-            <div>
+            <div className="min-w-0">
               <input type="text" inputMode="numeric" className="input-field text-xs font-mono" value={portText} onChange={(e) => handlePortChange(e.target.value)} placeholder="端口" />
             </div>
           </div>
@@ -154,8 +154,8 @@ const AddServerDialog: React.FC = () => {
               </label>
               {form.vncEnabled && (
                 <div className="grid grid-cols-2 gap-2">
-                  <input type="text" inputMode="numeric" className="input-field text-xs font-mono" value={vncPortText} onChange={(e) => handleVncPortChange(e.target.value)} placeholder="VNC 端口" />
-                  <input type="password" className="input-field text-xs" value={form.vncPassword} onChange={(e) => updateField('vncPassword', e.target.value)} placeholder="VNC 密码" />
+                  <input type="text" inputMode="numeric" className="input-field text-xs font-mono min-w-0" value={vncPortText} onChange={(e) => handleVncPortChange(e.target.value)} placeholder="VNC 端口" />
+                  <input type="password" className="input-field text-xs min-w-0" value={form.vncPassword} onChange={(e) => updateField('vncPassword', e.target.value)} placeholder="VNC 密码" />
                 </div>
               )}
             </div>

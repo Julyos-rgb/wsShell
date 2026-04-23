@@ -244,7 +244,7 @@ const ProcessManager: React.FC = () => {
       {confirmVisible && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setConfirmVisible(false)}>
           <div
-            className="bg-surface-50 rounded-lg shadow-xl border border-border/60 p-4 w-80"
+            className="bg-surface-50 rounded-lg shadow-xl border border-border/60 p-4 w-full max-w-xs mx-4"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 mb-3">

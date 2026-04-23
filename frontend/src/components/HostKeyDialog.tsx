@@ -19,7 +19,7 @@ const HostKeyDialog: React.FC<HostKeyDialogProps> = ({
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onReject}>
       <div
-        className="bg-surface-300 rounded-lg shadow-glass w-[420px] border border-border/60"
+        className="bg-surface-300 rounded-lg shadow-glass w-full max-w-[420px] mx-4 border border-border/60"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-4 py-3 border-b border-border/40">

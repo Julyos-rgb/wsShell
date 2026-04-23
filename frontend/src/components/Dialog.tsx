@@ -105,7 +105,7 @@ function DialogOverlay({ dialog, onResolve }: {
     <div className="fixed inset-0 z-[90] flex items-center justify-center" onClick={handleCancel}>
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
       <div
-        className="relative bg-surface-300 rounded-lg shadow-glass w-[380px] border border-border/60 animate-slide-up"
+        className="relative bg-surface-300 rounded-lg shadow-glass w-full max-w-[380px] mx-4 border border-border/60 animate-slide-up"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >

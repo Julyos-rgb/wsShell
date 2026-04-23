@@ -211,7 +211,7 @@ const VncViewer: React.FC = () => {
             placeholder="VNC 密码（可选）"
             value={vncPassword}
             onChange={(e) => setVncPassword(e.target.value)}
-            className="input-field w-36 text-xs py-1"
+            className="input-field w-28 sm:w-36 text-xs py-1 min-w-0"
           />
         )}
       </div>
