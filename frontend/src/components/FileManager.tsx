@@ -34,7 +34,7 @@ const FileIcon = () => (
 interface FileItemProps {
     file: FileEntry
     isSelected: boolean
-    onSelect: (path: string) => void
+    onSelect: (path: string, multi: boolean) => void
     onNavigate: (path: string) => void
     onContextMenu: (e: React.MouseEvent, file: FileEntry) => void
 }
@@ -44,8 +44,14 @@ const FileItem: React.FC<FileItemProps> = ({ file, isSelected, onSelect, onNavig
         className={`flex justify-between items-center px-2 py-1 cursor-pointer transition-colors rounded text-xs ${
             isSelected ? 'bg-primary-500/15 text-primary-300' : 'hover:bg-surface-50/40 text-text-muted'
         }`}
-        onClick={() => onSelect(file.path)}
-        onDoubleClick={() => file.type === 'directory' ? onNavigate(file.path) : undefined}
+        onClick={(e) => {
+            if (file.type === 'directory') {
+                onNavigate(file.path)
+            } else {
+                onSelect(file.path, e.ctrlKey || e.metaKey)
+            }
+        }}
+        onDoubleClick={() => { if (file.type !== 'directory') onSelect(file.path, false) }}
         onContextMenu={(e) => onContextMenu(e, file)}
     >
         <div className="flex items-center gap-2 min-w-0">
@@ -128,7 +134,7 @@ const FileManager: React.FC = () => {
     const [remoteFiles, setRemoteFiles] = useState<FileEntry[]>([])
     const [remotePath, setRemotePath] = useState('/')
     const [remoteLoading, setRemoteLoading] = useState(false)
-    const [selectedRemote, setSelectedRemote] = useState<string | null>(null)
+    const [selectedRemote, setSelectedRemote] = useState<string[]>([])
     const [remoteHistory, setRemoteHistory] = useState<string[]>([])
     const [isDragging, setIsDragging] = useState(false)
     const [searchQuery, setSearchQuery] = useState('')
@@ -196,61 +202,67 @@ const FileManager: React.FC = () => {
     }, [transfers.filter(t => t.status === 'completed').length, removeTransfer])
 
     const handleDownload = async () => {
-        if (!selectedRemote || !getSftpSessionId()) return
-        const file = remoteFiles.find((f) => f.path === selectedRemote)
-        if (!file || file.type === 'directory') return
+        const targets = selectedRemote.length > 0 ? selectedRemote : []
+        if (targets.length === 0 || !getSftpSessionId()) return
         const sessionId = getSftpSessionId()!
-        const localFilePath = './downloads/' + file.name
 
-        try {
-            const state = await GetTransferState({
-                sessionId, remotePath: file.path, localPath: localFilePath, direction: 'download',
-            } as sftp.GetTransferStateRequest)
-            if (state.canResume) {
-                const confirmed = await confirm({
-                    title: '续传确认',
-                    message: `检测到部分文件 (${formatSize(state.localSize || 0)} / ${formatSize(state.remoteSize || 0)})，是否续传？`,
-                    confirmText: '续传',
-                })
-                if (confirmed) {
-                    await ResumeDownload({ sessionId, remotePath: file.path, localPath: localFilePath, offset: -1 } as sftp.ResumeDownloadRequest)
-                    loadRemoteFiles()
-                    return
+        for (const targetPath of targets) {
+            const file = remoteFiles.find((f) => f.path === targetPath)
+            if (!file || file.type === 'directory') continue
+            const localFilePath = './downloads/' + file.name
+
+            try {
+                const state = await GetTransferState({
+                    sessionId, remotePath: file.path, localPath: localFilePath, direction: 'download',
+                } as sftp.GetTransferStateRequest)
+                if (state.canResume) {
+                    const confirmed = await confirm({
+                        title: '续传确认',
+                        message: `检测到部分文件 (${formatSize(state.localSize || 0)} / ${formatSize(state.remoteSize || 0)})，是否续传？`,
+                        confirmText: '续传',
+                    })
+                    if (confirmed) {
+                        await ResumeDownload({ sessionId, remotePath: file.path, localPath: localFilePath, offset: -1 } as sftp.ResumeDownloadRequest)
+                        loadRemoteFiles()
+                        continue
+                    }
                 }
-            }
-        } catch (e) { console.error(e) }
+            } catch (e) { console.error(e) }
 
-        const taskId = `download-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-        addTransfer({ id: taskId, type: 'download', localPath: localFilePath, remotePath: file.path, progress: 0, total: file.size, written: 0, status: 'pending' })
-        try {
-            await DownloadFile({ sessionId, remotePath: file.path, localPath: localFilePath } as sftp.DownloadRequest)
-            updateTransfer(taskId, { status: 'completed', progress: 100 })
-            loadRemoteFiles()
-        } catch (e) {
-            updateTransfer(taskId, { status: 'error', error: String(e) })
+            const taskId = `download-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+            addTransfer({ id: taskId, type: 'download', localPath: localFilePath, remotePath: file.path, progress: 0, total: file.size, written: 0, status: 'pending' })
+            try {
+                await DownloadFile({ sessionId, remotePath: file.path, localPath: localFilePath } as sftp.DownloadRequest)
+                updateTransfer(taskId, { status: 'completed', progress: 100 })
+            } catch (e) {
+                updateTransfer(taskId, { status: 'error', error: String(e) })
+            }
         }
+        loadRemoteFiles()
     }
 
     const handleDeleteRemote = async (filePath?: string) => {
-        const target = filePath || selectedRemote
-        if (!target || !getSftpSessionId()) return
-        const file = remoteFiles.find(f => f.path === target)
+        const targets = filePath ? [filePath] : selectedRemote
+        if (targets.length === 0 || !getSftpSessionId()) return
+        const names = targets.map(t => remoteFiles.find(f => f.path === t)?.name || t)
         const ok = await confirm({
             title: '删除确认',
-            message: `确定删除 "${file?.name || target}" 吗？`,
+            message: `确定删除 ${targets.length > 1 ? `${targets.length} 个文件` : `"${names[0]}"`} 吗？`,
             confirmText: '删除',
             danger: true,
         })
         if (!ok) return
-        try {
-            await DeleteFile({ sessionId: getSftpSessionId()!, path: target })
-            loadRemoteFiles()
-            setSelectedRemote(null)
-        } catch (e) { console.error(e) }
+        for (const target of targets) {
+            try {
+                await DeleteFile({ sessionId: getSftpSessionId()!, path: target })
+            } catch (e) { console.error(e) }
+        }
+        loadRemoteFiles()
+        setSelectedRemote([])
     }
 
     const handleRenameRemote = async (filePath?: string) => {
-        const target = filePath || selectedRemote
+        const target = filePath || (selectedRemote.length === 1 ? selectedRemote[0] : undefined)
         if (!target || !getSftpSessionId()) return
         const file = remoteFiles.find(f => f.path === target)
         if (!file) return
@@ -266,7 +278,7 @@ const FileManager: React.FC = () => {
         try {
             await Rename({ sessionId: getSftpSessionId()!, oldPath: target, newPath: parentPath + '/' + newName } as sftp.RenameRequest)
             loadRemoteFiles()
-            setSelectedRemote(null)
+            setSelectedRemote([])
         } catch (e) { console.error(e) }
     }
 
@@ -337,7 +349,17 @@ const FileManager: React.FC = () => {
         } catch (e) { console.error(e) }
     }, [uploadLocalFiles])
 
-    const navigateRemote = (path: string) => { setRemoteHistory((prev) => [...prev, remotePath]); loadRemoteFiles(path) }
+    const handleSelectRemote = useCallback((path: string, multi: boolean) => {
+        if (multi) {
+            setSelectedRemote(prev =>
+                prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]
+            )
+        } else {
+            setSelectedRemote([path])
+        }
+    }, [])
+
+    const navigateRemote = (path: string) => { setSelectedRemote([]); setRemoteHistory((prev) => [...prev, remotePath]); loadRemoteFiles(path) }
 
     const handlePathSubmit = () => {
         const p = pathInput.trim()
@@ -397,7 +419,7 @@ const FileManager: React.FC = () => {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M17 13l-5 5m0 0l-5-5m5 5V6" />
                     </svg>
                 ),
-                onClick: () => { setSelectedRemote(file.path); setTimeout(() => handleDownload(), 0) },
+                onClick: () => { setSelectedRemote([file.path]); setTimeout(() => handleDownload(), 0) },
             }]),
             { separator: true },
             {
@@ -420,7 +442,7 @@ const FileManager: React.FC = () => {
                 onClick: () => handleDeleteRemote(file.path),
             },
         ]
-        setSelectedRemote(file.path)
+        setSelectedRemote([file.path])
         showRemoteCtx(e, items)
     }, [getSftpSessionId])
 
@@ -486,7 +508,7 @@ const FileManager: React.FC = () => {
                                 {directories.map((dir, i) => (
                                     <div
                                         key={i}
-                                        className={`flex items-center gap-1.5 px-2 py-1 cursor-pointer text-[10px] text-text-dim hover:bg-surface-50/40 ${selectedRemote === dir.path ? 'bg-primary-500/10 text-primary-300' : ''}`}
+                                        className={`flex items-center gap-1.5 px-2 py-1 cursor-pointer text-[10px] text-text-dim hover:bg-surface-50/40 ${selectedRemote.includes(dir.path) ? 'bg-primary-500/10 text-primary-300' : ''}`}
                                         onClick={() => navigateRemote(dir.path)}
                                         onContextMenu={(e) => getRemoteContextMenu(e, dir)}
                                     >
@@ -568,10 +590,10 @@ const FileManager: React.FC = () => {
                         ) : (
                             <>
                                 {filteredFiles.directories.map((file, i) => (
-                                    <FileItem key={`dir-${i}`} file={file} isSelected={selectedRemote === file.path} onSelect={setSelectedRemote} onNavigate={navigateRemote} onContextMenu={getRemoteContextMenu} />
+                                    <FileItem key={`dir-${i}`} file={file} isSelected={selectedRemote.includes(file.path)} onSelect={handleSelectRemote} onNavigate={navigateRemote} onContextMenu={getRemoteContextMenu} />
                                 ))}
                                 {filteredFiles.filesOnly.map((file, i) => (
-                                    <FileItem key={`file-${i}`} file={file} isSelected={selectedRemote === file.path} onSelect={setSelectedRemote} onNavigate={navigateRemote} onContextMenu={getRemoteContextMenu} />
+                                    <FileItem key={`file-${i}`} file={file} isSelected={selectedRemote.includes(file.path)} onSelect={handleSelectRemote} onNavigate={navigateRemote} onContextMenu={getRemoteContextMenu} />
                                 ))}
                             </>
                         )}
@@ -617,13 +639,13 @@ const FileManager: React.FC = () => {
                             </svg>
                             <span>新建</span>
                         </button>
-                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-dim hover:text-text hover:bg-surface-50/40 transition-colors disabled:opacity-30" onClick={() => handleRenameRemote()} disabled={!selectedRemote} title="重命名">
+                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-dim hover:text-text hover:bg-surface-50/40 transition-colors disabled:opacity-30" onClick={() => handleRenameRemote()} disabled={selectedRemote.length !== 1} title="重命名">
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                             <span>重命名</span>
                         </button>
-                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-dim hover:text-danger hover:bg-danger/10 transition-colors disabled:opacity-30" onClick={() => handleDeleteRemote()} disabled={!selectedRemote} title="删除">
+                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-dim hover:text-danger hover:bg-danger/10 transition-colors disabled:opacity-30" onClick={() => handleDeleteRemote()} disabled={selectedRemote.length === 0} title="删除">
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
@@ -636,7 +658,7 @@ const FileManager: React.FC = () => {
                             </svg>
                             <span>上传</span>
                         </button>
-                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-accent-blue hover:bg-accent-blue/10 transition-colors disabled:opacity-30" onClick={handleDownload} disabled={!selectedRemote} title="下载选中文件">
+                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-accent-blue hover:bg-accent-blue/10 transition-colors disabled:opacity-30" onClick={handleDownload} disabled={selectedRemote.length === 0} title="下载选中文件">
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 13l-5 5m0 0l-5-5m5 5V6" />
                             </svg>
