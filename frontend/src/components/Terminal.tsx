@@ -7,6 +7,7 @@ import { EventsOn, EventsOff, ClipboardSetText, ClipboardGetText } from '../../w
 import { WriteToSession, ResizeTerminal, CreateShell, Disconnect as SSHDisconnect } from '../../wailsjs/go/ssh/SSHService'
 import AutocompletePopup from './AutocompletePopup'
 import { useDialog } from './Dialog'
+import { useContextMenu, ContextMenuItem } from './ContextMenu'
 
 const xtermTheme = {
   background: '#11111b',
@@ -53,6 +54,7 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active, 
   const [showAC, setShowAC] = useState(false)
   const [acPrefix, setAcPrefix] = useState('')
   const [acPosition, setAcPosition] = useState({ top: 0, left: 0 })
+  const { show: showCtx, ContextMenuOverlay: CtxOverlay } = useContextMenu()
 
   activeRef.current = active
   appVisibleRef.current = appVisible
@@ -145,13 +147,47 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active, 
     term.attachCustomKeyEventHandler(customKeyEventHandler)
 
     const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault()
       const hasSelection = !!term.getSelection()
-      if (hasSelection) {
-        handleCopy()
-      } else {
-        handlePaste()
-      }
+      const items: ContextMenuItem[] = hasSelection
+        ? [
+            {
+              label: '复制',
+              icon: (
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+              ),
+              onClick: () => handleCopy(),
+            },
+            {
+              label: '粘贴',
+              icon: (
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              ),
+              onClick: () => handlePaste(),
+            },
+          ]
+        : [
+            {
+              label: '粘贴',
+              icon: (
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+              ),
+              onClick: () => handlePaste(),
+            },
+          ]
+      // Use React synthetic event for useContextMenu
+      const syntheticEvent = {
+        preventDefault: () => e.preventDefault(),
+        stopPropagation: () => e.stopPropagation(),
+        clientX: e.clientX,
+        clientY: e.clientY,
+      } as unknown as React.MouseEvent
+      showCtx(syntheticEvent, items)
     }
     containerRef.current.addEventListener('contextmenu', handleContextMenu)
 
@@ -255,6 +291,7 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active, 
           onClose={handleAcClose}
         />
       )}
+      <CtxOverlay />
     </div>
   )
 }
