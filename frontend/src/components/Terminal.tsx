@@ -180,14 +180,7 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active, 
               onClick: () => handlePaste(),
             },
           ]
-      // Use React synthetic event for useContextMenu
-      const syntheticEvent = {
-        preventDefault: () => e.preventDefault(),
-        stopPropagation: () => e.stopPropagation(),
-        clientX: e.clientX,
-        clientY: e.clientY,
-      } as unknown as React.MouseEvent
-      showCtx(syntheticEvent, items)
+      showCtx(e, items)
     }
     containerRef.current.addEventListener('contextmenu', handleContextMenu)
 

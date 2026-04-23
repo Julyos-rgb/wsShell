@@ -108,7 +108,7 @@ export function useContextMenu() {
     items: ContextMenuItem[]
   }>({ visible: false, x: 0, y: 0, items: [] })
 
-  const show = useCallback((e: React.MouseEvent, items: ContextMenuItem[]) => {
+  const show = useCallback((e: { clientX: number; clientY: number; preventDefault: () => void; stopPropagation: () => void }, items: ContextMenuItem[]) => {
     e.preventDefault()
     e.stopPropagation()
     setState({ visible: true, x: e.clientX, y: e.clientY, items })
