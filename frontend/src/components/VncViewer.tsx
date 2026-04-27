@@ -11,12 +11,15 @@ import { useDialog } from './Dialog'
 const VncViewer: React.FC = () => {
   const { connections, servers } = useConnectionStore()
   const activeServerId = useUIStore((s) => s.activeServerId)
+  const activeTab = useUIStore((s) => s.activeTab)
   const { prompt: dialogPrompt } = useDialog()
   const containerRef = useRef<HTMLDivElement>(null)
   const rfbRef = useRef<RFB | null>(null)
+  const proxySessionIdRef = useRef('')
+  const prevActiveServerIdRef = useRef<string | null>(activeServerId)
+  const suppressDisconnectEventRef = useRef(false)
   const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
-  const [proxyUrl, setProxyUrl] = useState('')
   const [vncPassword, setVncPassword] = useState('')
   const [fullscreen, setFullscreen] = useState(false)
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -34,19 +37,57 @@ const VncViewer: React.FC = () => {
     reconnectCountRef.current = 0
   }, [])
 
-  const disconnect = useCallback(() => {
+  const stopProxyServer = useCallback((sessionId?: string) => {
+    const currentSessionId = sessionId || proxySessionIdRef.current
+    if (!currentSessionId) return
+    proxySessionIdRef.current = ''
+    StopProxy({ sessionId: currentSessionId } as vnc.StopProxyRequest).catch(() => {})
+  }, [])
+
+  const restoreViewport = useCallback(() => {
+    const rfb = rfbRef.current as (RFB & {
+      _updateScale?: () => void
+      _updateClip?: () => void
+    }) | null
+    const container = containerRef.current
+
+    if (!rfb || !container || container.offsetWidth === 0 || container.offsetHeight === 0) {
+      return false
+    }
+
+    void container.offsetHeight
+
+    try {
+      rfb.scaleViewport = false
+      rfb.scaleViewport = true
+    } catch {}
+
+    try {
+      rfb._updateScale?.()
+    } catch {}
+
+    try {
+      rfb._updateClip?.()
+    } catch {}
+
+    return true
+  }, [])
+
+  const disconnect = useCallback((nextStatus: 'idle' | 'error' = 'idle', nextError = '') => {
     cleanup()
-    if (rfbRef.current) {
-      rfbRef.current.disconnect()
-      rfbRef.current = null
+    suppressDisconnectEventRef.current = true
+    const rfb = rfbRef.current
+    rfbRef.current = null
+    if (rfb) {
+      rfb.disconnect()
     }
-    if (proxyUrl && activeServer) {
-      const sessionId = `${activeServer.host}:${activeServer.vncPort || 5900}`
-      StopProxy({ sessionId } as vnc.StopProxyRequest).catch(() => {})
-    }
-    setStatus('idle')
-    setProxyUrl('')
-  }, [proxyUrl, activeServer, cleanup])
+    stopProxyServer()
+    setStatus(nextStatus)
+    setErrorMsg(nextError)
+    setTimeout(() => {
+      suppressDisconnectEventRef.current = false
+    }, 0)
+  }, [cleanup, stopProxyServer])
 
   const handleConnect = useCallback(async () => {
     if (!activeServer) return
@@ -58,10 +99,12 @@ const VncViewer: React.FC = () => {
 
     try {
       const vncHost = activeServer.vncTunnel ? '127.0.0.1' : activeServer.host
+      const vncPort = activeServer.vncPort || 5900
       const sshSessionId = connection?.sessionId || ''
+      const proxySessionId = `${vncHost}:${vncPort}`
       const resp = await StartProxy({
         host: vncHost,
-        port: activeServer.vncPort || 5900,
+        port: vncPort,
         password: vncPassword || activeServer.vncPassword || '',
         tunnel: activeServer.vncTunnel || false,
         sshSessionId,
@@ -73,8 +116,8 @@ const VncViewer: React.FC = () => {
         return
       }
 
+      proxySessionIdRef.current = proxySessionId
       const wsUrl = resp.wsUrl || ''
-      setProxyUrl(wsUrl)
 
       if (containerRef.current) {
         containerRef.current.innerHTML = ''
@@ -90,10 +133,14 @@ const VncViewer: React.FC = () => {
           reconnectCountRef.current = 0
         })
         rfb.addEventListener('disconnect', (ev: any) => {
+          if (suppressDisconnectEventRef.current) return
           const clean = ev.detail?.clean
           rfbRef.current = null
+          cleanup()
+          stopProxyServer(proxySessionId)
           if (clean) {
             setStatus('idle')
+            setErrorMsg('')
           } else {
             setStatus('error')
             setErrorMsg('VNC 连接已断开')
@@ -121,7 +168,7 @@ const VncViewer: React.FC = () => {
       setStatus('error')
       setErrorMsg(e.toString())
     }
-  }, [activeServer, vncPassword, connection, cleanup, dialogPrompt])
+  }, [activeServer, vncPassword, connection, cleanup, dialogPrompt, stopProxyServer])
 
   const handleFullscreen = useCallback(() => {
     setFullscreen((prev) => !prev)
@@ -130,19 +177,65 @@ const VncViewer: React.FC = () => {
   useEffect(() => {
     return () => {
       cleanup()
-      if (rfbRef.current) {
-        rfbRef.current.disconnect()
-        rfbRef.current = null
+      const rfb = rfbRef.current
+      rfbRef.current = null
+      if (rfb) {
+        rfb.disconnect()
       }
+      stopProxyServer()
     }
-  }, [cleanup])
+  }, [cleanup, stopProxyServer])
 
-  // Disconnect VNC when switching to a different server
   useEffect(() => {
-    if (rfbRef.current && status === 'connected') {
-      disconnect()
+    const previousServerId = prevActiveServerIdRef.current
+    if (previousServerId !== activeServerId) {
+      prevActiveServerIdRef.current = activeServerId
+      if (rfbRef.current && status === 'connected') {
+        disconnect()
+      }
+      return
     }
-  }, [activeServerId])
+    prevActiveServerIdRef.current = activeServerId
+  }, [activeServerId, status, disconnect])
+
+  useEffect(() => {
+    if (activeTab !== 'vnc' || status !== 'connected') return
+
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    let rafId1 = 0
+    let rafId2 = 0
+
+    rafId1 = requestAnimationFrame(() => {
+      rafId2 = requestAnimationFrame(() => {
+        if (!restoreViewport()) {
+          timeoutId = setTimeout(() => {
+            restoreViewport()
+          }, 80)
+        }
+      })
+    })
+
+    return () => {
+      cancelAnimationFrame(rafId1)
+      cancelAnimationFrame(rafId2)
+      if (timeoutId) clearTimeout(timeoutId)
+    }
+  }, [activeTab, status, fullscreen, restoreViewport])
+
+  useEffect(() => {
+    if (status !== 'connected') return
+
+    const container = containerRef.current
+    if (!container) return
+
+    const observer = new ResizeObserver(() => {
+      if (activeTab !== 'vnc') return
+      restoreViewport()
+    })
+
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [activeTab, status, restoreViewport])
 
   const showPasswordInput = activeServer?.vncEnabled && status === 'idle'
   const vncPort = activeServer?.vncPort || 5900
@@ -167,7 +260,7 @@ const VncViewer: React.FC = () => {
         )}
         {status === 'connected' && (
           <>
-            <button className="btn-danger text-xs" onClick={disconnect}>
+            <button className="btn-danger text-xs" onClick={() => disconnect()}>
               <span className="flex items-center gap-1.5">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
