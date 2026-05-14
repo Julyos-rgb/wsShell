@@ -6,7 +6,11 @@ export function AddServer(arg1:config.AddServerRequest):Promise<config.AddServer
 
 export function DeleteServer(arg1:config.DeleteServerRequest):Promise<config.DeleteServerResponse>;
 
+export function ExportServers():Promise<config.ExportServersResponse>;
+
 export function GetServers():Promise<config.GetServersResponse>;
+
+export function ImportServers(arg1:config.ImportServersRequest):Promise<config.ImportServersResponse>;
 
 export function ToggleFavorite(arg1:config.ToggleFavoriteRequest):Promise<config.ToggleFavoriteResponse>;
 

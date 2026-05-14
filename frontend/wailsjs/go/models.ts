@@ -137,6 +137,7 @@ export namespace config {
 	    vncTunnel: boolean;
 	    favorite: boolean;
 	    tags: string[];
+	    connectTimeout: number;
 	    createdAt?: string;
 	    updatedAt?: string;
 	
@@ -161,6 +162,7 @@ export namespace config {
 	        this.vncTunnel = source["vncTunnel"];
 	        this.favorite = source["favorite"];
 	        this.tags = source["tags"];
+	        this.connectTimeout = source["connectTimeout"];
 	        this.createdAt = source["createdAt"];
 	        this.updatedAt = source["updatedAt"];
 	    }
@@ -247,6 +249,36 @@ export namespace config {
 	        this.error = source["error"];
 	    }
 	}
+	export class ExportServersResponse {
+	    servers: ServerConfig[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ExportServersResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.servers = this.convertValues(source["servers"], ServerConfig);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class GetServersResponse {
 	    servers: ServerConfig[];
 	
@@ -276,6 +308,52 @@ export namespace config {
 		    }
 		    return a;
 		}
+	}
+	export class ImportServersRequest {
+	    servers: ServerConfig[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ImportServersRequest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.servers = this.convertValues(source["servers"], ServerConfig);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ImportServersResponse {
+	    success: boolean;
+	    count: number;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ImportServersResponse(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.count = source["count"];
+	        this.error = source["error"];
+	    }
 	}
 	
 	export class ToggleFavoriteRequest {
@@ -1697,6 +1775,7 @@ export namespace ssh {
 	    password: string;
 	    privateKey: string;
 	    authType: string;
+	    connectTimeout: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new ConnectRequest(source);
@@ -1710,6 +1789,7 @@ export namespace ssh {
 	        this.password = source["password"];
 	        this.privateKey = source["privateKey"];
 	        this.authType = source["authType"];
+	        this.connectTimeout = source["connectTimeout"];
 	    }
 	}
 	export class ConnectResponse {

@@ -10,8 +10,16 @@ export function DeleteServer(arg1) {
   return window['go']['config']['ConfigManager']['DeleteServer'](arg1);
 }
 
+export function ExportServers() {
+  return window['go']['config']['ConfigManager']['ExportServers']();
+}
+
 export function GetServers() {
   return window['go']['config']['ConfigManager']['GetServers']();
+}
+
+export function ImportServers(arg1) {
+  return window['go']['config']['ConfigManager']['ImportServers'](arg1);
 }
 
 export function ToggleFavorite(arg1) {
