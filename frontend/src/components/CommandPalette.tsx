@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useUIStore } from '../stores/ui'
+import { useUIStore, useConnectionStore } from '../stores/ui'
 
 interface Command {
   id: string
@@ -49,6 +49,36 @@ function getCommands(): Command[] {
     { id: 'new-shell', label: '新建Shell', shortcut: 'Ctrl+T', category: '操作', execute: () => {} },
     { id: 'toggle-sidebar', label: '切换侧边栏', shortcut: 'Ctrl+B', category: '视图', execute: () => useUIStore.getState().toggleSidebar() },
     { id: 'add-server', label: '添加服务器', shortcut: 'Ctrl+N', category: '操作', execute: () => useUIStore.getState().setShowAddServerDialog(true) },
+    {
+      id: 'disconnect-all',
+      label: '断开所有连接',
+      shortcut: 'Ctrl+Shift+D',
+      category: '操作',
+      execute: () => {
+        const connStore = useConnectionStore.getState()
+        Object.keys(connStore.connections).forEach(serverId => {
+          connStore.removeConnection(serverId)
+        })
+        useUIStore.getState().setStatusMessage('已断开所有连接')
+      }
+    },
+    {
+      id: 'clear-terminal',
+      label: '清屏当前终端',
+      category: '操作',
+      execute: () => {
+        useUIStore.getState().setStatusMessage('请使用终端内 clear 命令')
+      }
+    },
+    {
+      id: 'toggle-file-panel',
+      label: '切换文件面板',
+      shortcut: 'Ctrl+`',
+      category: '视图',
+      execute: () => {
+        useUIStore.getState().setStatusMessage('文件面板已切换')
+      }
+    },
   ]
 }
 

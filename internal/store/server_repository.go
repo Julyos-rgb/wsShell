@@ -20,9 +20,10 @@ type ServerRow struct {
 	VNCEnabled  bool     `json:"vncEnabled"`
 	VNCPort     int      `json:"vncPort"`
 	VNCPassword string   `json:"vncPassword"`
-	VNCTunnel   bool     `json:"vncTunnel"`
-	Favorite    bool     `json:"favorite"`
-	Tags        []string `json:"tags"`
+	VNCTunnel       bool     `json:"vncTunnel"`
+	Favorite        bool     `json:"favorite"`
+	Tags            []string `json:"tags"`
+	ConnectTimeout  int      `json:"connectTimeout"`
 	CreatedAt   string   `json:"createdAt,omitempty"`
 	UpdatedAt   string   `json:"updatedAt,omitempty"`
 }
@@ -51,7 +52,8 @@ func NewServerRepository() (ServerRepository, error) {
 func (r *sqliteServerRepository) GetAll() ([]ServerRow, error) {
 	rows, err := r.db.Query(
 		`SELECT id, name, grp, host, port, username, auth_type, password, private_key,
-		        vnc_enabled, vnc_port, vnc_password, vnc_tunnel, favorite, tags, created_at, updated_at
+		        vnc_enabled, vnc_port, vnc_password, vnc_tunnel, favorite, tags, created_at, updated_at,
+		        connect_timeout
 		 FROM servers ORDER BY favorite DESC, name ASC`)
 	if err != nil {
 		return nil, err
@@ -64,11 +66,12 @@ func (r *sqliteServerRepository) GetAll() ([]ServerRow, error) {
 		var tagsJSON string
 		var vncEnabled, vncTunnel, favorite int
 		var createdAt, updatedAt sql.NullString
+		var connectTimeout sql.NullInt64
 
 		err := rows.Scan(
 			&s.ID, &s.Name, &s.Group, &s.Host, &s.Port, &s.Username, &s.AuthType,
 			&s.Password, &s.PrivateKey, &vncEnabled, &s.VNCPort, &s.VNCPassword,
-			&vncTunnel, &favorite, &tagsJSON, &createdAt, &updatedAt,
+			&vncTunnel, &favorite, &tagsJSON, &createdAt, &updatedAt, &connectTimeout,
 		)
 		if err != nil {
 			return nil, err
@@ -79,6 +82,7 @@ func (r *sqliteServerRepository) GetAll() ([]ServerRow, error) {
 		s.Favorite = favorite == 1
 		s.CreatedAt = createdAt.String
 		s.UpdatedAt = updatedAt.String
+		s.ConnectTimeout = int(connectTimeout.Int64)
 
 		if err := json.Unmarshal([]byte(tagsJSON), &s.Tags); err != nil {
 			s.Tags = []string{}
@@ -97,18 +101,20 @@ func (r *sqliteServerRepository) GetAll() ([]ServerRow, error) {
 func (r *sqliteServerRepository) GetByID(id string) (*ServerRow, error) {
 	row := r.db.QueryRow(
 		`SELECT id, name, grp, host, port, username, auth_type, password, private_key,
-		        vnc_enabled, vnc_port, vnc_password, vnc_tunnel, favorite, tags, created_at, updated_at
+		        vnc_enabled, vnc_port, vnc_password, vnc_tunnel, favorite, tags, created_at, updated_at,
+		        connect_timeout
 		 FROM servers WHERE id = ?`, id)
 
 	var s ServerRow
 	var tagsJSON string
 	var vncEnabled, vncTunnel, favorite int
 	var createdAt, updatedAt sql.NullString
+	var connectTimeout sql.NullInt64
 
 	err := row.Scan(
 		&s.ID, &s.Name, &s.Group, &s.Host, &s.Port, &s.Username, &s.AuthType,
 		&s.Password, &s.PrivateKey, &vncEnabled, &s.VNCPort, &s.VNCPassword,
-		&vncTunnel, &favorite, &tagsJSON, &createdAt, &updatedAt,
+		&vncTunnel, &favorite, &tagsJSON, &createdAt, &updatedAt, &connectTimeout,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -122,6 +128,7 @@ func (r *sqliteServerRepository) GetByID(id string) (*ServerRow, error) {
 	s.Favorite = favorite == 1
 	s.CreatedAt = createdAt.String
 	s.UpdatedAt = updatedAt.String
+	s.ConnectTimeout = int(connectTimeout.Int64)
 
 	if err := json.Unmarshal([]byte(tagsJSON), &s.Tags); err != nil {
 		s.Tags = []string{}
@@ -156,11 +163,13 @@ func (r *sqliteServerRepository) Save(s ServerRow) error {
 	_, err := r.db.Exec(
 		`INSERT OR REPLACE INTO servers
 		 (id, name, grp, host, port, username, auth_type, password, private_key,
-		  vnc_enabled, vnc_port, vnc_password, vnc_tunnel, favorite, tags, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+		  vnc_enabled, vnc_port, vnc_password, vnc_tunnel, favorite, tags, updated_at,
+		  connect_timeout)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'),
+		         ?)`,
 		s.ID, s.Name, s.Group, s.Host, s.Port, s.Username, s.AuthType,
 		s.Password, s.PrivateKey, vncEnabled, s.VNCPort, s.VNCPassword,
-		vncTunnel, favorite, string(tagsJSON),
+		vncTunnel, favorite, string(tagsJSON), s.ConnectTimeout,
 	)
 	return err
 }
@@ -188,11 +197,12 @@ func (r *sqliteServerRepository) Update(s ServerRow) error {
 		`UPDATE servers SET
 		  name=?, grp=?, host=?, port=?, username=?, auth_type=?, password=?,
 		  private_key=?, vnc_enabled=?, vnc_port=?, vnc_password=?, vnc_tunnel=?,
-		  favorite=?, tags=?, updated_at=datetime('now')
+		  favorite=?, tags=?, updated_at=datetime('now'),
+		  connect_timeout=?
 		 WHERE id=?`,
 		s.Name, s.Group, s.Host, s.Port, s.Username, s.AuthType,
 		s.Password, s.PrivateKey, vncEnabled, s.VNCPort, s.VNCPassword,
-		vncTunnel, favorite, string(tagsJSON), s.ID,
+		vncTunnel, favorite, string(tagsJSON), s.ConnectTimeout, s.ID,
 	)
 	return err
 }

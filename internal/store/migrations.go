@@ -46,6 +46,14 @@ func runMigrations(db *sql.DB) error {
 		}
 	}
 
+	alters := []string{
+		`ALTER TABLE servers ADD COLUMN connect_timeout INTEGER DEFAULT 0`,
+	}
+
+	for _, a := range alters {
+		db.Exec(a)
+	}
+
 	log.Println("Database migrations completed")
 	return nil
 }

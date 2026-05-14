@@ -34,6 +34,7 @@ interface TerminalTabState {
   setActiveTerminalTab: (tabId: string | null) => void
   updateTerminalTab: (tabId: string, updates: Partial<TerminalTab>) => void
   getTerminalTab: (tabId: string) => TerminalTab | undefined
+  reorderTabs: (fromIndex: number, toIndex: number) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -174,4 +175,12 @@ export const useTerminalTabStore = create<TerminalTabState>((set, get) => ({
     })),
 
   getTerminalTab: (tabId) => get().terminalTabs.find((t) => t.id === tabId),
+
+  reorderTabs: (fromIndex, toIndex) =>
+    set((state) => {
+      const tabs = [...state.terminalTabs]
+      const [moved] = tabs.splice(fromIndex, 1)
+      tabs.splice(toIndex, 0, moved)
+      return { terminalTabs: tabs }
+    }),
 }))

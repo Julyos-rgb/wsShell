@@ -22,10 +22,11 @@ type ServerConfig struct {
 	VNCEnabled  bool     `json:"vncEnabled"`
 	VNCPort     int      `json:"vncPort"`
 	VNCPassword string   `json:"vncPassword"`
-	VNCTunnel   bool     `json:"vncTunnel"`
-	Favorite    bool     `json:"favorite"`
-	Tags        []string `json:"tags"`
-	CreatedAt   string   `json:"createdAt,omitempty"`
+	VNCTunnel       bool     `json:"vncTunnel"`
+	Favorite        bool     `json:"favorite"`
+	Tags            []string `json:"tags"`
+	ConnectTimeout  int      `json:"connectTimeout"`
+	CreatedAt       string   `json:"createdAt,omitempty"`
 	UpdatedAt   string   `json:"updatedAt,omitempty"`
 }
 
@@ -57,10 +58,11 @@ func rowToDecryptedConfig(row store.ServerRow) ServerConfig {
 		VNCEnabled:  row.VNCEnabled,
 		VNCPort:     row.VNCPort,
 		VNCPassword: vncPassword,
-		VNCTunnel:   row.VNCTunnel,
-		Favorite:    row.Favorite,
-		Tags:        row.Tags,
-		CreatedAt:   row.CreatedAt,
+		VNCTunnel:      row.VNCTunnel,
+		Favorite:       row.Favorite,
+		Tags:           row.Tags,
+		ConnectTimeout: row.ConnectTimeout,
+		CreatedAt:      row.CreatedAt,
 		UpdatedAt:   row.UpdatedAt,
 	}
 }
@@ -79,10 +81,11 @@ func configToRow(s ServerConfig) store.ServerRow {
 		VNCEnabled:  s.VNCEnabled,
 		VNCPort:     s.VNCPort,
 		VNCPassword: s.VNCPassword,
-		VNCTunnel:   s.VNCTunnel,
-		Favorite:    s.Favorite,
-		Tags:        s.Tags,
-		CreatedAt:   s.CreatedAt,
+		VNCTunnel:      s.VNCTunnel,
+		Favorite:       s.Favorite,
+		Tags:           s.Tags,
+		ConnectTimeout: s.ConnectTimeout,
+		CreatedAt:      s.CreatedAt,
 		UpdatedAt:   s.UpdatedAt,
 	}
 }
@@ -220,4 +223,51 @@ func (c *ConfigManager) ToggleFavorite(req ToggleFavoriteRequest) (ToggleFavorit
 		return ToggleFavoriteResponse{Success: false, Error: err.Error()}, nil
 	}
 	return ToggleFavoriteResponse{Success: true}, nil
+}
+
+type ExportServersResponse struct {
+	Servers []ServerConfig `json:"servers"`
+}
+
+func (c *ConfigManager) ExportServers() (ExportServersResponse, error) {
+	rows, err := c.repo.GetAll()
+	if err != nil {
+		return ExportServersResponse{}, err
+	}
+	servers := make([]ServerConfig, len(rows))
+	for i, row := range rows {
+		servers[i] = rowToDecryptedConfig(row)
+	}
+	return ExportServersResponse{Servers: servers}, nil
+}
+
+type ImportServersRequest struct {
+	Servers []ServerConfig `json:"servers"`
+}
+
+type ImportServersResponse struct {
+	Success bool   `json:"success"`
+	Count   int    `json:"count"`
+	Error   string `json:"error,omitempty"`
+}
+
+func (c *ConfigManager) ImportServers(req ImportServersRequest) (ImportServersResponse, error) {
+	imported := 0
+	for _, s := range req.Servers {
+		existing, _ := c.repo.GetByID(s.ID)
+		if existing != nil {
+			continue
+		}
+		if s.ID == "" {
+			s.ID = fmt.Sprintf("%d", time.Now().UnixNano())
+		}
+		if err := encryptSensitiveFields(&s); err != nil {
+			continue
+		}
+		if err := c.repo.Save(configToRow(s)); err != nil {
+			continue
+		}
+		imported++
+	}
+	return ImportServersResponse{Success: true, Count: imported}, nil
 }

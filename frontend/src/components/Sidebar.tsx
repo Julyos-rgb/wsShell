@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useUIStore, useConnectionStore, useTerminalTabStore } from '../stores/ui'
 import { ServerConfig } from '../types'
-import { GetServers, DeleteServer, UpdateServer } from '../../wailsjs/go/config/ConfigManager'
+import { GetServers, AddServer, DeleteServer, UpdateServer } from '../../wailsjs/go/config/ConfigManager'
 import { Connect as SSHConnect, Disconnect as SSHDisconnect, TrustHostKey } from '../../wailsjs/go/ssh/SSHService'
 import { ConnectFromSSH as SFTPConnectFromSSH, Disconnect as SFTPDisconnect } from '../../wailsjs/go/sftp/SFTPManager'
+import { ClipboardSetText, ClipboardGetText } from '../../wailsjs/runtime/runtime'
 import HostKeyDialog from './HostKeyDialog'
 import { useContextMenu, ContextMenuItem } from './ContextMenu'
 import { useDialog } from './Dialog'
@@ -106,6 +107,7 @@ const Sidebar: React.FC = () => {
         password: server.password || '',
         privateKey: server.privateKey || '',
         authType: server.authType || 'password',
+        connectTimeout: server.connectTimeout || 0,
       })
 
       if (sshResp.success) {
@@ -153,6 +155,7 @@ const Sidebar: React.FC = () => {
         password: pendingServer.password || '',
         privateKey: pendingServer.privateKey || '',
         authType: pendingServer.authType || 'password',
+        connectTimeout: pendingServer.connectTimeout || 0,
       })
 
       if (sshResp.success) {
@@ -365,37 +368,127 @@ const Sidebar: React.FC = () => {
     showContextMenu(e, items)
   }, [connections, showContextMenu, servers])
 
+  const handleExportServers = useCallback(async () => {
+    try {
+      const resp = await GetServers()
+      const servers = (resp.servers || []).map((s: ServerConfig) => ({
+        ...s,
+        password: '',
+        privateKey: '',
+        vncPassword: '',
+      }))
+      const json = JSON.stringify(servers, null, 2)
+      await ClipboardSetText(json)
+      setStatusMessage(`已导出 ${servers.length} 台服务器配置到剪贴板`)
+    } catch (e: any) {
+      setStatusMessage(`导出失败: ${e.toString()}`)
+    }
+  }, [setStatusMessage])
+
+  const handleImportServers = useCallback(async () => {
+    try {
+      const text = await ClipboardGetText()
+      if (!text) {
+        setStatusMessage('剪贴板为空，请先复制 JSON 配置')
+        return
+      }
+      let servers: ServerConfig[]
+      try {
+        servers = JSON.parse(text)
+      } catch {
+        setStatusMessage('剪贴板内容不是有效的 JSON')
+        return
+      }
+      if (!Array.isArray(servers) || servers.length === 0) {
+        setStatusMessage('未找到有效的服务器配置')
+        return
+      }
+      const ok = await confirm({
+        title: '导入服务器配置',
+        message: `检测到 ${servers.length} 台服务器配置，是否导入？已存在的服务器（按 ID 判断）将被跳过。`,
+        confirmText: '导入',
+      })
+      if (!ok) return
+
+      let imported = 0
+      let skipped = 0
+      for (const s of servers) {
+        if (servers.some((existing: ServerConfig) => existing.id === s.id && existing !== s)) {
+          const existingServer = (await GetServers()).servers?.find((es: ServerConfig) => es.id === s.id)
+          if (existingServer) { skipped++; continue }
+        }
+        try {
+          const resp = await AddServer({ server: s } as any)
+          if (resp.success) imported++
+          else skipped++
+        } catch {
+          skipped++
+        }
+      }
+      loadServers()
+      setStatusMessage(`导入完成：成功 ${imported} 台，跳过 ${skipped} 台`)
+    } catch (e: any) {
+      setStatusMessage(`导入失败: ${e.toString()}`)
+    }
+  }, [confirm, setStatusMessage])
+
   const handleBackgroundContextMenu = useCallback((e: React.MouseEvent) => {
-    if (selectedIds.size === 0) return
     e.preventDefault()
-    const items: ContextMenuItem[] = [
+    const items: ContextMenuItem[] = []
+
+    if (selectedIds.size > 0) {
+      items.push(
+        {
+          label: `设置分组（${selectedIds.size} 台）`,
+          icon: (
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
+            </svg>
+          ),
+          onClick: handleBatchSetGroup,
+        },
+        { separator: true },
+        {
+          label: `删除选中（${selectedIds.size} 台）`,
+          danger: true,
+          icon: (
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          ),
+          onClick: handleBatchDelete,
+        },
+        {
+          label: '取消选择',
+          onClick: () => setSelectedIds(new Set()),
+        },
+        { separator: true },
+      )
+    }
+
+    items.push(
       {
-        label: `设置分组（${selectedIds.size} 台）`,
-        icon: (
-          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z" />
-          </svg>
-        ),
-        onClick: handleBatchSetGroup,
-      },
-      { separator: true },
-      {
-        label: `删除选中（${selectedIds.size} 台）`,
-        danger: true,
+        label: '导出配置',
         icon: (
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
         ),
-        onClick: handleBatchDelete,
+        onClick: handleExportServers,
       },
       {
-        label: '取消选择',
-        onClick: () => setSelectedIds(new Set()),
+        label: '导入配置',
+        icon: (
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+        ),
+        onClick: handleImportServers,
       },
-    ]
+    )
+
     showContextMenu(e, items)
-  }, [selectedIds, showContextMenu, handleBatchSetGroup, handleBatchDelete])
+  }, [selectedIds, showContextMenu, handleBatchSetGroup, handleBatchDelete, handleExportServers, handleImportServers])
 
   const toggleGroup = useCallback((group: string) => {
     setCollapsedGroups((prev) => {

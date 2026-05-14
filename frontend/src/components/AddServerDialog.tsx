@@ -7,7 +7,7 @@ const emptyServer: ServerConfig = {
   id: '', name: '', group: '', host: '', port: 22, username: 'root',
   authType: 'password', password: '', privateKey: '',
   vncEnabled: false, vncPort: 5900, vncPassword: '', vncTunnel: false,
-  favorite: false, tags: [],
+  favorite: false, tags: [], connectTimeout: 0,
 }
 
 const AddServerDialog: React.FC = () => {
@@ -160,6 +160,20 @@ const AddServerDialog: React.FC = () => {
               )}
             </div>
           )}
+
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-text-dim w-16 flex-shrink-0">连接超时</label>
+            <input
+              type="number"
+              className="input-field flex-1 text-xs"
+              placeholder="秒（默认10）"
+              value={form.connectTimeout || ''}
+              onChange={(e) => updateField('connectTimeout', parseInt(e.target.value) || 0)}
+              min={0}
+              max={120}
+            />
+            <span className="text-[10px] text-text-dim">秒</span>
+          </div>
 
           {error && <div className="text-xs text-danger">{error}</div>}
         </div>

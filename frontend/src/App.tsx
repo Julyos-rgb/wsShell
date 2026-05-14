@@ -11,6 +11,7 @@ import { ToastProvider } from './components/Toast'
 import { useUIStore, useConnectionStore, useTerminalTabStore } from './stores/ui'
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime'
+import { Disconnect as SSHDisconnect } from '../wailsjs/go/ssh/SSHService'
 
 function App() {
   const { activeTab, theme, setTheme, sidebarCollapsed } = useUIStore()
@@ -96,6 +97,30 @@ function App() {
       }
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 'b') { e.preventDefault(); useUIStore.getState().toggleSidebar() }
+      }
+      if (e.ctrlKey && !e.shiftKey && !e.altKey) {
+        const num = parseInt(e.key)
+        if (num >= 1 && num <= 9) {
+          e.preventDefault()
+          const tabs = useTerminalTabStore.getState().terminalTabs
+          const idx = num - 1
+          if (idx < tabs.length) {
+            useTerminalTabStore.getState().setActiveTerminalTab(tabs[idx].id)
+          }
+          return
+        }
+      }
+      if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key === 'w') {
+        e.preventDefault()
+        const tabStore = useTerminalTabStore.getState()
+        if (tabStore.activeTerminalTabId) {
+          const tab = tabStore.terminalTabs.find(t => t.id === tabStore.activeTerminalTabId)
+          if (tab && !tab.id.endsWith('-main')) {
+            try { SSHDisconnect(tab.sessionId) } catch (e) { console.warn('Disconnect failed:', e) }
+          }
+          tabStore.removeTerminalTab(tabStore.activeTerminalTabId)
+        }
+        return
       }
     }
     window.addEventListener('keydown', handleKeyDown)

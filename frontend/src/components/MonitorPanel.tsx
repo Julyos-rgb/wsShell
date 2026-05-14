@@ -51,6 +51,7 @@ const MonitorPanel: React.FC = () => {
   const [error, setError] = useState('')
 
   const monitorSessionRef = useRef<string | null>(null)
+  const usageHistoryRef = useRef<Array<{ cpu: number; mem: number }>>([])
 
   const connection = activeServerId ? connections[activeServerId] : undefined
   const isConnected = !!connection
@@ -59,6 +60,7 @@ const MonitorPanel: React.FC = () => {
     setSysInfo(null)
     setUsage(null)
     setError('')
+    usageHistoryRef.current = []
   }, [])
 
   useEffect(() => {
@@ -88,7 +90,11 @@ const MonitorPanel: React.FC = () => {
     })
 
     const handleUsage = (data: any) => {
-      setUsage(data as ResourceUsage)
+      const u = data as ResourceUsage
+      setUsage(u)
+      const h = usageHistoryRef.current
+      h.push({ cpu: u.cpuPercent, mem: u.memPercent })
+      if (h.length > 60) h.shift()
     }
 
     const handleError = (data: any) => {
@@ -105,6 +111,23 @@ const MonitorPanel: React.FC = () => {
       monitorSessionRef.current = null
     }
   }, [connection?.sessionId])
+
+const SparkLine: React.FC<{ data: number[]; color: string; height?: number }> = ({ data, color, height = 28 }) => {
+  if (data.length < 2) return null
+  const max = 100
+  const w = 100
+  const h = height
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * w
+    const y = h - (Math.min(v, max) / max) * h
+    return `${x},${y}`
+  }).join(' ')
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: `${height}px` }} preserveAspectRatio="none">
+      <polyline fill="none" stroke={color} strokeWidth="1.5" points={points} vectorEffect="non-scaling-stroke" />
+    </svg>
+  )
+}
 
   const getCpuColor = (v: number) => v >= 90 ? '#ef4444' : v >= 70 ? '#f59e0b' : '#22c55e'
   const getMemColor = (v: number) => v >= 90 ? '#ef4444' : v >= 70 ? '#f59e0b' : '#3b82f6'
@@ -141,7 +164,13 @@ const MonitorPanel: React.FC = () => {
       {usage && (
         <div className="space-y-2">
           <MetricBar value={usage.cpuPercent} color={getCpuColor(usage.cpuPercent)} label="CPU" detail={`${usage.cpuPercent.toFixed(1)}%`} />
+          <div className="mt-0.5">
+            <SparkLine data={usageHistoryRef.current.map(h => h.cpu)} color={getCpuColor(usage.cpuPercent)} />
+          </div>
           <MetricBar value={usage.memPercent} color={getMemColor(usage.memPercent)} label="内存" detail={`${usage.memUsedMB.toFixed(0)}/${usage.memTotalMB.toFixed(0)}M`} />
+          <div className="mt-0.5">
+            <SparkLine data={usageHistoryRef.current.map(h => h.mem)} color={getMemColor(usage.memPercent)} />
+          </div>
           <MetricBar value={usage.diskPercent} color={getDiskColor(usage.diskPercent)} label="磁盘" detail={`${usage.diskUsedGB.toFixed(1)}/${usage.diskTotalGB.toFixed(1)}G`} />
 
           <div className="flex items-center gap-3 pt-1">

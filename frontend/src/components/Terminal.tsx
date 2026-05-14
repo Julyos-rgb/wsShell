@@ -9,7 +9,7 @@ import AutocompletePopup from './AutocompletePopup'
 import { useDialog } from './Dialog'
 import { useContextMenu, ContextMenuItem } from './ContextMenu'
 
-const xtermTheme = {
+const xtermDarkTheme = {
   background: '#11111b',
   foreground: '#cdd6f4',
   cursor: '#818cf8',
@@ -34,6 +34,31 @@ const xtermTheme = {
   brightWhite: '#a6adc8',
 }
 
+const xtermLightTheme = {
+  background: '#fafafa',
+  foreground: '#1c1c1e',
+  cursor: '#007AFF',
+  cursorAccent: '#fafafa',
+  selectionBackground: '#007AFF33',
+  selectionForeground: '#1c1c1e',
+  black: '#1c1c1e',
+  red: '#ff3b30',
+  green: '#34c759',
+  yellow: '#ff9500',
+  blue: '#007AFF',
+  magenta: '#af52de',
+  cyan: '#5ac8fa',
+  white: '#8e8e93',
+  brightBlack: '#636366',
+  brightRed: '#ff453a',
+  brightGreen: '#30d158',
+  brightYellow: '#ff9f0a',
+  brightBlue: '#0a84ff',
+  brightMagenta: '#bf5af2',
+  brightCyan: '#64d2ff',
+  brightWhite: '#f2f2f7',
+}
+
 interface TerminalInstanceProps {
   tabId: string
   sessionId: string
@@ -55,6 +80,7 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active, 
   const [acPrefix, setAcPrefix] = useState('')
   const [acPosition, setAcPosition] = useState({ top: 0, left: 0 })
   const { show: showCtx, ContextMenuOverlay: CtxOverlay } = useContextMenu()
+  const { theme } = useUIStore()
 
   activeRef.current = active
   appVisibleRef.current = appVisible
@@ -91,7 +117,7 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active, 
       cursorStyle: 'bar',
       fontSize: 13,
       fontFamily: "'JetBrains Mono', 'Cascadia Code', Consolas, Monaco, 'Courier New', monospace",
-      theme: xtermTheme,
+      theme: theme === 'dark' ? xtermDarkTheme : xtermLightTheme,
       allowProposedApi: true,
       scrollback: 10000,
       drawBoldTextInBrightColors: true,
@@ -231,6 +257,12 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active, 
   }, [sessionId])
 
   useEffect(() => {
+    if (termRef.current) {
+      termRef.current.options.theme = theme === 'dark' ? xtermDarkTheme : xtermLightTheme
+    }
+  }, [theme])
+
+  useEffect(() => {
     const shouldActivate = active && appVisible
     if (!shouldActivate) return
     if (!fitRef.current || !termRef.current) return
@@ -271,8 +303,8 @@ const TerminalInstance: React.FC<TerminalInstanceProps> = ({ sessionId, active, 
   return (
     <div
       ref={containerRef}
-      className="absolute inset-0 p-1 bg-[#11111b]"
-      style={{ display: active ? 'block' : 'none' }}
+      className="absolute inset-0 p-1"
+      style={{ display: active ? 'block' : 'none', backgroundColor: theme === 'dark' ? '#11111b' : '#fafafa' }}
     >
       {showAC && (
         <AutocompletePopup
@@ -295,9 +327,12 @@ const XTerminal: React.FC = () => {
   const {
     terminalTabs, activeTerminalTabId,
     setActiveTerminalTab, removeTerminalTab, addTerminalTab,
+    reorderTabs,
   } = useTerminalTabStore()
   const appVisible = activeTab === 'terminal'
   const { prompt: dialogPrompt } = useDialog()
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
 
   const handleTabActivate = useCallback((tabId: string) => {
     setActiveTerminalTab(tabId)
@@ -367,16 +402,30 @@ const XTerminal: React.FC = () => {
     <div className="flex flex-col h-full overflow-hidden">
       {terminalTabs.length > 0 && (
         <div className="flex items-end bg-surface-400/90 backdrop-blur-xl border-b border-border/20 px-2 pt-1 flex-shrink-0">
-          {terminalTabs.map((tab) => (
+          {terminalTabs.map((tab, index) => (
             <div
               key={tab.id}
+              draggable
+              onDragStart={() => setDragIndex(index)}
+              onDragOver={(e) => { e.preventDefault(); setDragOverIndex(index) }}
+              onDrop={() => {
+                if (dragIndex !== null && dragIndex !== index) {
+                  reorderTabs(dragIndex, index)
+                }
+                setDragIndex(null)
+                setDragOverIndex(null)
+              }}
+              onDragEnd={() => { setDragIndex(null); setDragOverIndex(null) }}
               className={`group flex items-center gap-1.5 px-3 py-1.5 text-xs cursor-pointer rounded-t-xl transition-all duration-200 ${
                 tab.id === activeTerminalTabId
                   ? 'text-primary-500 bg-surface-50/80 font-medium'
                   : 'text-text-dim hover:text-text-muted hover:bg-surface-50/30'
-              }`}
+              } ${dragIndex === index ? 'opacity-50' : ''}`}
               onClick={() => handleTabActivate(tab.id)}
             >
+              {dragOverIndex === index && dragIndex !== null && dragIndex !== index && (
+                <div className="w-0.5 h-4 bg-primary-500 rounded-full -ml-1 mr-0.5" />
+              )}
               <span className="truncate max-w-[120px]">{tab.label}</span>
               <button
                 className="opacity-0 group-hover:opacity-100 w-4 h-4 flex items-center justify-center rounded-full hover:bg-surface-100/80 text-text-dim hover:text-text transition-all ml-1"
@@ -405,7 +454,7 @@ const XTerminal: React.FC = () => {
           <div className="absolute inset-0 flex items-center justify-center text-text-dim/60">
             <div className="text-center space-y-3">
               <div className="text-sm">点击左侧服务器开始连接</div>
-              <div className="text-xs text-text-dim/30">Ctrl+1~7 切换标签 / Ctrl+B 侧边栏 / Ctrl+Shift+P 命令面板</div>
+              <div className="text-xs text-text-dim/30">Ctrl+1~9 切换标签 / Ctrl+W 关闭标签 / Ctrl+B 侧边栏 / Ctrl+Shift+P 命令面板</div>
             </div>
           </div>
         ) : (

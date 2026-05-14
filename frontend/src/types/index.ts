@@ -14,6 +14,7 @@ export interface ServerConfig {
   vncTunnel: boolean
   favorite: boolean
   tags: string[]
+  connectTimeout: number
   createdAt?: string
   updatedAt?: string
 }

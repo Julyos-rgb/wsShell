@@ -49,12 +49,13 @@ func NewSSHService() *SSHService {
 }
 
 type ConnectRequest struct {
-	Host       string `json:"host"`
-	Port       int    `json:"port"`
-	Username   string `json:"username"`
-	Password   string `json:"password"`
-	PrivateKey string `json:"privateKey"`
-	AuthType   string `json:"authType"`
+	Host           string `json:"host"`
+	Port           int    `json:"port"`
+	Username       string `json:"username"`
+	Password       string `json:"password"`
+	PrivateKey     string `json:"privateKey"`
+	AuthType       string `json:"authType"`
+	ConnectTimeout int    `json:"connectTimeout"`
 }
 
 type ConnectResponse struct {
@@ -84,7 +85,12 @@ func (s *SSHService) Connect(req ConnectRequest) (ConnectResponse, error) {
 		req.Port = 22
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	timeout := 10 * time.Second
+	if req.ConnectTimeout > 0 {
+		timeout = time.Duration(req.ConnectTimeout) * time.Second
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout+5*time.Second)
 	defer cancel()
 
 	hostKeyCallback := s.createHostKeyCallback(req.Host)
@@ -92,7 +98,7 @@ func (s *SSHService) Connect(req ConnectRequest) (ConnectResponse, error) {
 	config := &sshcrypto.ClientConfig{
 		User:            req.Username,
 		HostKeyCallback: hostKeyCallback,
-		Timeout:         10 * time.Second,
+		Timeout:         timeout,
 	}
 
 	if req.AuthType == "key" && req.PrivateKey != "" {

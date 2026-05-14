@@ -136,6 +136,7 @@ const FileManager: React.FC = () => {
     const [pathInput, setPathInput] = useState('')
     const [showPathInput, setShowPathInput] = useState(false)
     const dropZoneRef = useRef<HTMLDivElement>(null)
+    const dragCounterRef = useRef(0)
     const remotePathRef = useRef('/')
     const searchInputRef = useRef<HTMLInputElement>(null)
     const pathInputRef = useRef<HTMLInputElement>(null)
@@ -430,6 +431,10 @@ const FileManager: React.FC = () => {
                 ref={dropZoneRef}
                 className={`flex-1 flex overflow-hidden transition-colors ${isDragging ? 'bg-primary-500/5' : ''}`}
                 style={{'--wails-drop-target': 'filemanager'} as React.CSSProperties}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
+                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); dragCounterRef.current++; setIsDragging(true) }}
+                onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); dragCounterRef.current--; if (dragCounterRef.current <= 0) { dragCounterRef.current = 0; setIsDragging(false) } }}
+                onDrop={(e) => { e.preventDefault(); e.stopPropagation(); dragCounterRef.current = 0; setIsDragging(false) }}
             >
                 <div className="flex flex-col border-r border-border/15 flex-shrink-0" style={{ width: '35%' }}>
                     <div className="px-2 py-1 border-b border-border/30 flex-shrink-0 flex items-center gap-1">
