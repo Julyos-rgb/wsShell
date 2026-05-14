@@ -67,12 +67,15 @@ export default {
             },
             fontFamily: {
                 'mono': ['JetBrains Mono', 'Cascadia Code', 'Consolas', 'Monaco', 'Courier New', 'monospace'],
-                'sans': ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                'sans': ['Inter', '-apple-system', 'BlinkMacSystemFont', 'SF Pro Display', 'Segoe UI', 'Roboto', 'sans-serif'],
             },
             animation: {
-                'fade-in': 'fadeIn 0.2s ease-out',
-                'slide-up': 'slideUp 0.2s ease-out',
-                'slide-down': 'slideDown 0.15s ease-out',
+                'fade-in': 'fadeIn 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                'slide-up': 'slideUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                'slide-down': 'slideDown 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                'slide-in-top': 'slideInTop 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                'slide-out-top': 'slideOutTop 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+                'scale-in': 'scaleIn 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                 'pulse-soft': 'pulseSoft 2s ease-in-out infinite',
                 'spin-slow': 'spin 3s linear infinite',
             },
@@ -82,12 +85,24 @@ export default {
                     '100%': { opacity: '1' },
                 },
                 slideUp: {
-                    '0%': { opacity: '0', transform: 'translateY(8px)' },
-                    '100%': { opacity: '1', transform: 'translateY(0)' },
+                    '0%': { opacity: '0', transform: 'translateY(12px) scale(0.98)' },
+                    '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
                 },
                 slideDown: {
-                    '0%': { opacity: '0', transform: 'translateY(-8px)' },
-                    '100%': { opacity: '1', transform: 'translateY(0)' },
+                    '0%': { opacity: '0', transform: 'translateY(-12px) scale(0.98)' },
+                    '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+                },
+                slideInTop: {
+                    '0%': { opacity: '0', transform: 'translateY(-20px) scale(0.96)' },
+                    '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+                },
+                slideOutTop: {
+                    '0%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+                    '100%': { opacity: '0', transform: 'translateY(-20px) scale(0.96)' },
+                },
+                scaleIn: {
+                    '0%': { opacity: '0', transform: 'scale(0.95)' },
+                    '100%': { opacity: '1', transform: 'scale(1)' },
                 },
                 pulseSoft: {
                     '0%, 100%': { opacity: '1' },

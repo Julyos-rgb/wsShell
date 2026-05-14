@@ -119,19 +119,19 @@ const ProcessManager: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full text-xs">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border/40 bg-surface-400/50 flex-shrink-0">
-        <div className="flex items-center bg-surface-500 rounded overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-border/20 bg-surface-400/50 flex-shrink-0">
+        <div className="flex bg-surface-50 rounded-xl p-0.5">
           <button
-            className={`px-2.5 py-1 text-[11px] transition-colors ${
-              sort === 'cpu' ? 'bg-primary-500/20 text-primary-300' : 'text-text-dim hover:text-text-muted'
+            className={`px-3 py-1 text-[11px] rounded-lg transition-colors ${
+              sort === 'cpu' ? 'bg-surface-400 text-primary-500 font-semibold shadow-sm' : 'text-text-dim'
             }`}
             onClick={() => setSort('cpu')}
           >
             CPU
           </button>
           <button
-            className={`px-2.5 py-1 text-[11px] transition-colors ${
-              sort === 'mem' ? 'bg-primary-500/20 text-primary-300' : 'text-text-dim hover:text-text-muted'
+            className={`px-3 py-1 text-[11px] rounded-lg transition-colors ${
+              sort === 'mem' ? 'bg-surface-400 text-primary-500 font-semibold shadow-sm' : 'text-text-dim'
             }`}
             onClick={() => setSort('mem')}
           >
@@ -148,12 +148,12 @@ const ProcessManager: React.FC = () => {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="过滤进程..."
-            className="w-full bg-surface-500 text-text text-[11px] pl-7 pr-2 py-1 rounded border border-border/30 focus:border-primary-500/50 focus:outline-none placeholder:text-text-dim/50 transition-colors"
+            className="w-full bg-surface-50 text-text text-[11px] pl-7 pr-2 py-1.5 rounded-xl border-none focus:outline-none focus:shadow-[var(--shadow-glow-sm)] placeholder:text-text-dim/50 transition-colors"
           />
         </div>
 
         <button
-          className={`px-2.5 py-1 rounded text-[11px] transition-colors flex items-center gap-1 ${
+          className={`rounded-xl px-3 py-1.5 text-[11px] transition-colors flex items-center gap-1 ${
             selectedPid !== null
               ? 'bg-danger/15 text-danger hover:bg-danger/25'
               : 'bg-surface-500 text-text-dim/40 cursor-not-allowed'
@@ -184,7 +184,7 @@ const ProcessManager: React.FC = () => {
 
       <div className="flex-1 overflow-auto">
         <table className="w-full">
-          <thead className="sticky top-0 bg-surface-400 z-10">
+          <thead className="sticky top-0 bg-surface-50/50 z-10">
             <tr className="text-text-dim text-[11px]">
               <th className="text-left px-3 py-1.5 font-medium w-14">PID</th>
               <th className="text-left px-2 py-1.5 font-medium w-16">USER</th>
@@ -199,9 +199,9 @@ const ProcessManager: React.FC = () => {
             {filtered.map((proc) => (
               <tr
                 key={proc.pid}
-                className={`border-b border-border/20 cursor-pointer transition-colors ${
+                className={`border-b border-border/10 cursor-pointer transition-colors ${
                   selectedPid === proc.pid
-                    ? 'bg-primary-500/10'
+                    ? 'bg-primary-500/8'
                     : 'hover:bg-surface-50/30'
                 }`}
                 onClick={() => setSelectedPid(selectedPid === proc.pid ? null : proc.pid)}
@@ -232,7 +232,7 @@ const ProcessManager: React.FC = () => {
         </table>
       </div>
 
-      <div className="flex items-center justify-between px-3 py-1 border-t border-border/40 bg-surface-400/50 flex-shrink-0 text-[10px] text-text-dim">
+      <div className="flex items-center justify-between px-3 py-1 border-t border-border/20 bg-surface-400/50 flex-shrink-0 text-[10px] text-text-dim">
         <span>进程: {filtered.length}</span>
         {selectedPid !== null && (
           <span className="text-primary-300">
@@ -242,29 +242,31 @@ const ProcessManager: React.FC = () => {
       </div>
 
       {confirmVisible && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setConfirmVisible(false)}>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50" onClick={() => setConfirmVisible(false)}>
           <div
-            className="bg-surface-50 rounded-lg shadow-xl border border-border/60 p-4 w-full max-w-xs mx-4"
+            className="glass-panel rounded-2xl shadow-glass border border-border/30 p-0 w-full max-w-xs mx-4 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-2 mb-3">
-              <svg className="w-5 h-5 text-accent-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-              </svg>
-              <span className="text-text font-medium text-sm">终止进程</span>
+            <div className="p-5 text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <svg className="w-6 h-6 text-accent-yellow" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+              </div>
+              <span className="text-text font-semibold text-sm">终止进程</span>
+              <p className="text-text-muted text-xs mt-2">
+                确定要终止进程 <span className="text-text font-mono">PID {selectedPid}</span> 吗？此操作不可撤销。
+              </p>
             </div>
-            <p className="text-text-muted text-xs mb-4">
-              确定要终止进程 <span className="text-text font-mono">PID {selectedPid}</span> 吗？此操作不可撤销。
-            </p>
-            <div className="flex justify-end gap-2">
+            <div className="border-t border-border/20 flex">
               <button
-                className="px-3 py-1.5 rounded text-xs text-text-muted hover:bg-surface-100 transition-colors"
+                className="flex-1 py-2.5 text-xs text-primary-500 font-medium hover:bg-surface-50/30 transition-colors border-r border-border/20"
                 onClick={() => setConfirmVisible(false)}
               >
                 取消
               </button>
               <button
-                className="px-3 py-1.5 rounded text-xs bg-danger/20 text-danger hover:bg-danger/30 transition-colors disabled:opacity-50"
+                className="flex-1 py-2.5 text-xs text-danger font-semibold hover:bg-danger/8 transition-colors disabled:opacity-50"
                 onClick={handleKill}
                 disabled={killing}
               >

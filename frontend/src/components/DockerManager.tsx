@@ -37,7 +37,7 @@ const StateBadge: React.FC<{ state: string }> = ({ state }) => {
     restarting: 'bg-accent-yellow/15 text-accent-yellow',
   }
   return (
-    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide ${cfg[state] || 'bg-surface-50/40 text-text-dim'}`}>
+    <span className={`px-1.5 py-0.5 rounded-lg text-[10px] font-medium uppercase tracking-wide ${cfg[state] || 'bg-surface-50/40 text-text-dim'}`}>
       {state}
     </span>
   )
@@ -209,13 +209,13 @@ const DockerManager: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col bg-surface overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border/40 flex-shrink-0">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border/20 flex-shrink-0">
         <div className="flex items-center gap-2">
           <svg className="w-4 h-4 text-accent-blue" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
           </svg>
           <span className="text-sm font-medium text-text">Docker 容器</span>
-          <span className="text-[10px] text-text-dim bg-surface-50 px-1.5 py-0.5 rounded">
+          <span className="text-[10px] text-text-dim bg-surface-50/80 px-1.5 py-0.5 rounded-lg">
             {containers.length}
           </span>
         </div>
@@ -238,9 +238,9 @@ const DockerManager: React.FC = () => {
       </div>
 
       {error && (
-        <div className="px-4 py-1.5 bg-danger/10 text-danger text-xs border-b border-danger/20">
+        <div className="px-4 py-1.5 bg-danger/10 text-danger text-xs rounded-none">
           {error}
-          <button className="ml-2 underline text-danger/70 hover:text-danger" onClick={() => setError('')}>
+          <button className="ml-2 underline text-danger/70 hover:text-danger rounded-lg" onClick={() => setError('')}>
             关闭
           </button>
         </div>
@@ -260,7 +260,7 @@ const DockerManager: React.FC = () => {
         ) : (
           <table className="w-full text-xs">
             <thead>
-              <tr className="text-text-dim border-b border-border/30 text-left">
+              <tr className="text-text-dim border-b border-border/10 text-left">
                 <th className="px-3 py-1.5 font-medium">名称</th>
                 <th className="px-3 py-1.5 font-medium">镜像</th>
                 <th className="px-3 py-1.5 font-medium">状态</th>
@@ -277,8 +277,8 @@ const DockerManager: React.FC = () => {
                 return (
                   <React.Fragment key={c.id}>
                     <tr
-                      className={`border-b border-border/20 cursor-pointer transition-colors ${
-                        isSelected ? 'bg-primary-500/8' : 'hover:bg-surface-50/30'
+                      className={`border-b border-border/10 cursor-pointer transition-colors ${
+                        isSelected ? 'bg-primary-500/6' : 'hover:bg-surface-50/30'
                       }`}
                       onClick={() => handleSelectContainer(c.id)}
                     >
@@ -311,7 +311,7 @@ const DockerManager: React.FC = () => {
                         <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                           {c.state !== 'running' && (
                             <button
-                              className="p-1 rounded hover:bg-accent-green/15 text-text-dim hover:text-accent-green transition-colors disabled:opacity-30"
+                              className="p-1.5 rounded-lg hover:bg-accent-green/15 text-text-dim hover:text-accent-green transition-colors disabled:opacity-30"
                               disabled={isActing}
                               onClick={() => handleAction(c.name, 'start')}
                             >
@@ -324,7 +324,7 @@ const DockerManager: React.FC = () => {
                           )}
                           {c.state === 'running' && (
                             <button
-                              className="p-1 rounded hover:bg-accent-yellow/15 text-text-dim hover:text-accent-yellow transition-colors disabled:opacity-30"
+                              className="p-1.5 rounded-lg hover:bg-accent-yellow/15 text-text-dim hover:text-accent-yellow transition-colors disabled:opacity-30"
                               disabled={isActing}
                               onClick={() => handleAction(c.name, 'stop')}
                             >
@@ -336,7 +336,7 @@ const DockerManager: React.FC = () => {
                             </button>
                           )}
                           <button
-                            className="p-1 rounded hover:bg-accent-blue/15 text-text-dim hover:text-accent-blue transition-colors disabled:opacity-30"
+                            className="p-1.5 rounded-lg hover:bg-accent-blue/15 text-text-dim hover:text-accent-blue transition-colors disabled:opacity-30"
                             disabled={isActing}
                             onClick={() => handleAction(c.name, 'restart')}
                           >
@@ -347,7 +347,7 @@ const DockerManager: React.FC = () => {
                             )}
                           </button>
                           <button
-                            className="p-1 rounded hover:bg-danger/15 text-text-dim hover:text-danger transition-colors disabled:opacity-30"
+                            className="p-1.5 rounded-lg hover:bg-danger/15 text-text-dim hover:text-danger transition-colors disabled:opacity-30"
                             disabled={isActing}
                             onClick={async () => {
                               const ok = await confirm({
@@ -372,9 +372,9 @@ const DockerManager: React.FC = () => {
                     </tr>
 
                     {showStats && s && c.state === 'running' && (
-                      <tr className="bg-surface-50/20 border-b border-border/10">
+                      <tr className="bg-surface-50/30 border-b border-border/10">
                         <td colSpan={5} className="px-3 py-1.5">
-                          <div className="flex items-center gap-4 text-[10px] text-text-dim">
+                          <div className="rounded-xl flex items-center gap-4 text-[10px] text-text-dim px-2 py-1">
                             <span>CPU: <span className="text-accent-blue font-mono">{s.cpuPct}%</span></span>
                             <span>内存: <span className="text-accent-green font-mono">{s.memUsage}</span> ({s.memPct}%)</span>
                             <span>网络: <span className="text-accent-yellow font-mono">{s.netIO}</span></span>
@@ -385,10 +385,10 @@ const DockerManager: React.FC = () => {
                     )}
 
                     {isSelected && (
-                      <tr className="bg-surface-100/50 border-b border-border/20">
+                      <tr className="bg-surface-100/50 border-b border-border/10">
                         <td colSpan={5} className="p-0">
                           <div className="flex flex-col">
-                            <div className="flex items-center justify-between px-3 py-1 border-b border-border/20">
+                            <div className="flex items-center justify-between px-3 py-1 border-b border-border/10">
                               <span className="text-[10px] text-text-dim">
                                 日志 - {c.name}
                               </span>
@@ -401,7 +401,7 @@ const DockerManager: React.FC = () => {
                             </div>
                             <div
                               ref={logsPanelRef}
-                              className="h-48 overflow-auto px-3 py-2 bg-surface-500/50 font-mono text-[11px] text-text-muted leading-relaxed"
+                              className="h-48 overflow-auto px-3 py-2 bg-surface-500/50 font-mono text-[11px] text-text-muted leading-relaxed rounded-none"
                             >
                               {logsLoading ? (
                                 <span className="animate-pulse">加载日志...</span>

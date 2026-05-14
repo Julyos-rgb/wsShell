@@ -64,23 +64,23 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose }) => {
   return (
     <div
       ref={menuRef}
-      className="fixed z-[100] min-w-[180px] py-1 bg-surface-300 border border-border/60 rounded-lg shadow-glass animate-fade-in"
+      className="fixed z-[100] min-w-[200px] py-1 rounded-xl shadow-glass animate-scale-in overflow-hidden backdrop-blur-2xl bg-surface-400/85 border border-border/20"
       style={{ left: adjustedPos.x, top: adjustedPos.y }}
     >
       {items.map((item, i) => {
         if (item.separator) {
-          return <div key={`sep-${i}`} className="my-1 border-t border-border/40" />
+          return <div key={`sep-${i}`} className="my-1 border-t border-border/15" />
         }
         const mi = item as MenuItem
         return (
           <button
             key={`item-${i}`}
-            className={`w-full flex items-center gap-2.5 px-3 py-1.5 text-xs transition-colors text-left
+            className={`w-full flex items-center gap-2.5 px-3 py-2 text-xs rounded-lg mx-1 transition-colors text-left
               ${mi.disabled
-                ? 'text-text-dim/40 cursor-not-allowed'
+                ? 'text-text-dim/30 cursor-not-allowed'
                 : mi.danger
-                  ? 'text-danger hover:bg-danger/10'
-                  : 'text-text-muted hover:bg-surface-50/40 hover:text-text'
+                  ? 'text-danger hover:bg-danger/8'
+                  : 'text-text-muted hover:bg-surface-50/50 hover:text-text'
               }`}
             onClick={(e) => {
               e.stopPropagation()

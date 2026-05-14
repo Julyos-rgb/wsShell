@@ -121,7 +121,7 @@ const AutocompletePopup: React.FC<AutocompletePopupProps> = ({
 
   return (
     <div
-      className="fixed z-50 min-w-[280px] max-w-[480px] bg-surface-400 border border-border/60 rounded-md shadow-glass animate-fade-in overflow-hidden"
+      className="fixed z-50 min-w-[280px] max-w-[480px] backdrop-blur-2xl bg-surface-400/85 border border-border/20 rounded-xl shadow-glass animate-scale-in overflow-hidden"
       style={{ top: position.top, left: position.left }}
     >
       <div
@@ -134,7 +134,7 @@ const AutocompletePopup: React.FC<AutocompletePopupProps> = ({
             key={suggestion.command}
             className={`flex items-center gap-2 px-3 cursor-pointer transition-colors ${
               index === selectedIndex
-                ? 'bg-primary-500/15 text-text'
+                ? 'bg-primary-500/12 text-text'
                 : 'text-text-muted hover:bg-surface-50/40'
             }`}
             style={{ height: 30 }}
@@ -143,7 +143,7 @@ const AutocompletePopup: React.FC<AutocompletePopupProps> = ({
           >
             <span
               className={`font-mono text-xs w-24 truncate flex-shrink-0 ${
-                index === selectedIndex ? 'text-primary-300' : (TYPE_COLORS[suggestion.type] || 'text-text')
+                index === selectedIndex ? 'text-primary-500' : (TYPE_COLORS[suggestion.type] || 'text-text')
               }`}
             >
               {highlightPrefix(suggestion.command)}
@@ -154,17 +154,17 @@ const AutocompletePopup: React.FC<AutocompletePopupProps> = ({
           </div>
         ))}
       </div>
-      <div className="flex items-center justify-between px-3 py-1 border-t border-border/30 text-text-dim text-[10px]">
+      <div className="flex items-center justify-between px-3 py-1 border-t border-border/20 text-text-dim text-[10px]">
         <span>{suggestions.length} 条结果</span>
         <span className="flex gap-2">
           <span>
-            <kbd className="px-1 py-0.5 bg-surface-50/50 rounded text-[9px]">↑↓</kbd> 导航
+            <kbd className="bg-surface-50/50 rounded-lg px-1 py-0.5 text-[9px]">↑↓</kbd> 导航
           </span>
           <span>
-            <kbd className="px-1 py-0.5 bg-surface-50/50 rounded text-[9px]">Tab</kbd> 选择
+            <kbd className="bg-surface-50/50 rounded-lg px-1 py-0.5 text-[9px]">Tab</kbd> 选择
           </span>
           <span>
-            <kbd className="px-1 py-0.5 bg-surface-50/50 rounded text-[9px]">Esc</kbd> 关闭
+            <kbd className="bg-surface-50/50 rounded-lg px-1 py-0.5 text-[9px]">Esc</kbd> 关闭
           </span>
         </span>
       </div>

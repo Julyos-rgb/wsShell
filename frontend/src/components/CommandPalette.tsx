@@ -133,14 +133,14 @@ export default function CommandPalette() {
         if (e.target === e.currentTarget) close()
       }}
     >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
 
       <div
-        className="relative w-full max-w-lg rounded-xl border border-border
-          bg-surface-50/80 backdrop-blur-xl shadow-2xl overflow-hidden"
+        className="relative w-full max-w-lg rounded-2xl border border-border/20
+          backdrop-blur-2xl bg-surface-400/85 shadow-glass overflow-hidden animate-scale-in"
         onKeyDown={handleKeyDown}
       >
-        <div className="flex items-center border-b border-border px-4">
+        <div className="flex items-center border-b border-border/20 px-4">
           <svg className="h-4 w-4 shrink-0 text-text-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -154,7 +154,7 @@ export default function CommandPalette() {
             autoComplete="off"
             spellCheck={false}
           />
-          <kbd className="hidden sm:inline-flex items-center rounded border border-border bg-surface px-1.5 py-0.5 text-[10px] text-text-dim font-mono">
+          <kbd className="hidden sm:inline-flex items-center rounded-lg border border-border/30 bg-surface-50/80 px-1.5 py-0.5 text-[10px] text-text-dim font-mono">
             ESC
           </kbd>
         </div>
@@ -169,11 +169,11 @@ export default function CommandPalette() {
               <button
                 key={cmd.id}
                 data-command-item
-                className={`w-full flex items-center justify-between rounded-lg px-3 py-2
+                className={`w-full flex items-center justify-between rounded-xl px-3 py-2.5
                   text-left text-sm transition-colors duration-75 cursor-pointer
                   ${index === selectedIndex
-                    ? 'bg-primary/20 text-primary-300'
-                    : 'text-text hover:bg-surface/60'
+                    ? 'bg-primary-500/12 text-text'
+                    : 'text-text hover:bg-surface-50/50'
                   }`}
                 onClick={() => executeCommand(cmd)}
                 onMouseEnter={() => setSelectedIndex(index)}
@@ -185,7 +185,7 @@ export default function CommandPalette() {
                   <span>{cmd.label}</span>
                 </div>
                 {cmd.shortcut && (
-                  <kbd className="text-[10px] text-text-dim font-mono bg-surface border border-border rounded px-1.5 py-0.5">
+                  <kbd className="text-[10px] text-text-dim font-mono bg-surface-50/80 border border-border/30 rounded-lg px-1.5 py-0.5">
                     {cmd.shortcut}
                   </kbd>
                 )}
@@ -194,17 +194,17 @@ export default function CommandPalette() {
           )}
         </div>
 
-        <div className="border-t border-border px-4 py-2 flex items-center gap-4 text-[11px] text-text-dim">
+        <div className="border-t border-border/20 px-4 py-2 flex items-center gap-4 text-[11px] text-text-dim">
           <span className="flex items-center gap-1">
-            <kbd className="font-mono bg-surface border border-border rounded px-1">↑↓</kbd>
+            <kbd className="font-mono bg-surface-50/80 border border-border/30 rounded-lg px-1.5 py-0.5">↑↓</kbd>
             导航
           </span>
           <span className="flex items-center gap-1">
-            <kbd className="font-mono bg-surface border border-border rounded px-1">↵</kbd>
+            <kbd className="font-mono bg-surface-50/80 border border-border/30 rounded-lg px-1.5 py-0.5">↵</kbd>
             执行
           </span>
           <span className="flex items-center gap-1">
-            <kbd className="font-mono bg-surface border border-border rounded px-1">esc</kbd>
+            <kbd className="font-mono bg-surface-50/80 border border-border/30 rounded-lg px-1.5 py-0.5">esc</kbd>
             关闭
           </span>
         </div>

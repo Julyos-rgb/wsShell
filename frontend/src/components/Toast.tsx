@@ -41,11 +41,11 @@ const icons: Record<ToastItem['type'], React.ReactNode> = {
   ),
 }
 
-const bgColors: Record<ToastItem['type'], string> = {
-  info: 'bg-accent-blue/10 border-accent-blue/30',
-  success: 'bg-accent-green/10 border-accent-green/30',
-  error: 'bg-danger/10 border-danger/30',
-  warning: 'bg-accent-yellow/10 border-accent-yellow/30',
+const barColors: Record<ToastItem['type'], string> = {
+  info: '#3b82f6',
+  success: '#22c55e',
+  error: '#ef4444',
+  warning: '#eab308',
 }
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
@@ -63,12 +63,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="fixed bottom-14 right-4 z-[200] flex flex-col gap-1.5 pointer-events-none">
+      <div className="fixed top-4 right-4 z-[200] flex flex-col gap-2 pointer-events-none">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`pointer-events-auto flex items-center gap-2 px-3 py-2 rounded-lg border shadow-glass animate-slide-up text-xs text-text ${bgColors[t.type]}`}
+            className={`pointer-events-auto flex items-center gap-3 pl-3 pr-4 py-2.5 rounded-2xl shadow-glass animate-slide-in-top text-xs text-text overflow-hidden backdrop-blur-2xl bg-surface-400/80 border border-border/20`}
           >
+            <div className="w-1 self-stretch rounded-full" style={{ backgroundColor: barColors[t.type] }} />
             {icons[t.type]}
             <span className="max-w-xs truncate">{t.message}</span>
           </div>

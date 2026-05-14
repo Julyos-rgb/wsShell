@@ -17,12 +17,12 @@ const HostKeyDialog: React.FC<HostKeyDialogProps> = ({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onReject}>
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50" onClick={onReject}>
       <div
-        className="bg-surface-300 rounded-lg shadow-glass w-full max-w-[420px] mx-4 border border-border/60"
+        className="glass-panel rounded-2xl shadow-glass w-full max-w-[420px] mx-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-4 py-3 border-b border-border/40">
+        <div className="text-center px-5 py-4 border-b border-border/20">
           <span className="text-sm font-medium text-text">
             {isMismatch ? '⚠ 主机密钥不匹配' : '新的主机密钥'}
           </span>
@@ -35,29 +35,29 @@ const HostKeyDialog: React.FC<HostKeyDialogProps> = ({
               <div>这可能是中间人攻击，也可能是服务器重装了系统。</div>
               <div className="space-y-1">
                 <div>之前记录的指纹 ({keyType}):</div>
-                <div className="font-mono bg-surface-500 px-2 py-1 rounded text-text-muted break-all">{expectedFingerprint}</div>
+                <div className="font-mono bg-surface-50 rounded-xl px-3 py-2 text-text-muted break-all">{expectedFingerprint}</div>
               </div>
               <div className="space-y-1">
                 <div>当前的指纹 ({keyType}):</div>
-                <div className="font-mono bg-surface-500 px-2 py-1 rounded text-text-muted break-all">{fingerprint}</div>
+                <div className="font-mono bg-surface-50 rounded-xl px-3 py-2 text-text-muted break-all">{fingerprint}</div>
               </div>
             </div>
           ) : (
             <div className="text-xs text-text-muted space-y-2">
               <div>首次连接到服务器 <span className="font-mono text-text">{host}</span></div>
               <div>主机密钥指纹 ({keyType}):</div>
-              <div className="font-mono bg-surface-500 px-2 py-1.5 rounded text-text-muted break-all">{fingerprint}</div>
+              <div className="font-mono bg-surface-50 rounded-xl px-3 py-2 text-text-muted break-all">{fingerprint}</div>
               <div className="text-text-dim">请确认此指纹与服务器实际密钥一致后信任。</div>
             </div>
           )}
         </div>
 
-        <div className="flex justify-end gap-2 px-4 py-3 border-t border-border/40">
-          <button className="btn-ghost text-xs" onClick={onReject}>取消</button>
+        <div className="flex border-t border-border/20">
+          <button className="flex-1 py-2.5 text-sm font-medium text-center text-text-muted transition-colors border-r border-border/20" onClick={onReject}>取消</button>
           {isMismatch ? (
-            <button className="btn-danger text-xs" onClick={onTrust}>仍然信任并更新密钥</button>
+            <button className="flex-1 py-2.5 text-sm font-semibold text-center text-danger transition-colors" onClick={onTrust}>仍然信任并更新密钥</button>
           ) : (
-            <button className="btn-primary text-xs" onClick={onTrust}>信任此主机</button>
+            <button className="flex-1 py-2.5 text-sm font-semibold text-center text-primary-500 transition-colors" onClick={onTrust}>信任此主机</button>
           )}
         </div>
       </div>

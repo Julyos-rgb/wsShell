@@ -31,7 +31,7 @@ interface ResourceUsage {
 const MetricBar: React.FC<{ value: number; color: string; label: string; detail: string }> = ({ value, color, label, detail }) => (
   <div className="flex items-center gap-2">
     <span className="text-[11px] text-text-dim w-8 flex-shrink-0">{label}</span>
-    <div className="flex-1 h-1.5 bg-surface-500 rounded-full overflow-hidden">
+    <div className="flex-1 h-2 bg-surface-50 rounded-full overflow-hidden">
       <div
         className="h-full rounded-full transition-all duration-500"
         style={{ width: `${Math.min(value, 100)}%`, backgroundColor: color }}
@@ -124,17 +124,17 @@ const MonitorPanel: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto p-3 space-y-2.5">
+    <div className="flex flex-col h-full overflow-y-auto p-3 space-y-3">
       {error && (
-        <div className="px-2 py-1 bg-danger/10 border border-danger/20 rounded text-[11px] text-danger">{error}</div>
+        <div className="rounded-xl px-3 py-2 bg-danger/8 text-danger text-[11px]">{error}</div>
       )}
 
       {sysInfo && (
-        <div className="flex items-center gap-3 text-[11px] text-text-dim flex-shrink-0">
+        <div className="rounded-xl bg-surface-50/50 px-3 py-2 flex items-center gap-3 text-[11px] text-text-dim flex-shrink-0">
           <span className="text-xs font-medium text-text-muted">{sysInfo.hostname}</span>
           <span className="w-px h-3 bg-border/40" />
           <span>运行 {sysInfo.uptime}</span>
-          {loading && <span className="text-accent-yellow animate-pulse">加载中</span>}
+          {loading && <span className="text-text-dim/60 animate-pulse">加载中</span>}
         </div>
       )}
 
@@ -158,7 +158,7 @@ const MonitorPanel: React.FC = () => {
       )}
 
       {!usage && !error && (
-        <div className="text-xs text-text-dim animate-pulse">正在获取系统信息...</div>
+        <div className="text-xs text-text-dim/60 animate-pulse">正在获取系统信息...</div>
       )}
     </div>
   )

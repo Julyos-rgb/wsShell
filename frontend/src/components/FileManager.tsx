@@ -41,8 +41,8 @@ interface FileItemProps {
 
 const FileItem: React.FC<FileItemProps> = ({ file, isSelected, onSelect, onNavigate, onContextMenu }) => (
     <div
-        className={`flex justify-between items-center px-2 py-1 cursor-pointer transition-colors rounded text-xs ${
-            isSelected ? 'bg-primary-500/15 text-primary-300' : 'hover:bg-surface-50/40 text-text-muted'
+        className={`flex justify-between items-center px-3 py-2 cursor-pointer transition-colors text-xs ${
+            isSelected ? 'bg-primary-500/10 text-primary-500' : 'hover:bg-surface-50/50 text-text-muted'
         }`}
         onClick={() => onSelect(file.path)}
         onDoubleClick={() => file.type === 'directory' ? onNavigate(file.path) : undefined}
@@ -67,7 +67,7 @@ interface BreadcrumbProps {
 const Breadcrumb: React.FC<BreadcrumbProps> = ({ path, onNavigate, sep }) => {
     const parts = path.split(sep).filter(Boolean)
     if (parts.length === 0) {
-        return <span className="text-text-muted cursor-pointer hover:text-text transition-colors" onClick={() => onNavigate(sep)}>{sep}</span>
+        return <span className="text-text-muted/50 cursor-pointer hover:text-text-muted transition-colors" onClick={() => onNavigate(sep)}>{sep}</span>
     }
 
     const isWindows = sep === '\\'
@@ -75,17 +75,17 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({ path, onNavigate, sep }) => {
     const startIndex = isWindows ? 1 : 0
 
     return (
-        <div className="flex items-center gap-0.5 min-w-0 overflow-hidden">
+        <div className="flex items-center gap-1 min-w-0 overflow-hidden">
             {isWindows ? (
                 <span
-                    className="text-text-muted hover:text-text transition-colors cursor-pointer flex-shrink-0"
+                    className="text-text-muted/50 hover:text-text-muted transition-colors cursor-pointer flex-shrink-0"
                     onClick={() => onNavigate(rootLabel + sep)}
                 >
                     {rootLabel}
                 </span>
             ) : (
                 <span
-                    className="text-text-muted hover:text-text transition-colors cursor-pointer flex-shrink-0"
+                    className="text-text-muted/50 hover:text-text-muted transition-colors cursor-pointer flex-shrink-0"
                     onClick={() => onNavigate('/')}
                 >
                     /
@@ -100,14 +100,14 @@ const Breadcrumb: React.FC<BreadcrumbProps> = ({ path, onNavigate, sep }) => {
                     : '/' + clickedParts.join('/')
                 return (
                     <React.Fragment key={i}>
-                        <svg className="w-2.5 h-2.5 text-text-dim/40 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <svg className="w-2 h-2 text-text-dim/30 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                         </svg>
                         <span
                             className={`text-[10px] truncate transition-colors cursor-pointer ${
                                 i === parts.slice(startIndex).length - 1
-                                    ? 'text-text font-medium'
-                                    : 'text-text-muted hover:text-text'
+                                    ? 'text-text/80 font-medium'
+                                    : 'text-text-muted/60 hover:text-text-muted'
                             }`}
                             onClick={() => onNavigate(targetPath)}
                         >
@@ -431,7 +431,7 @@ const FileManager: React.FC = () => {
                 className={`flex-1 flex overflow-hidden transition-colors ${isDragging ? 'bg-primary-500/5' : ''}`}
                 style={{'--wails-drop-target': 'filemanager'} as React.CSSProperties}
             >
-                <div className="flex flex-col border-r border-border/30 flex-shrink-0" style={{ width: '35%' }}>
+                <div className="flex flex-col border-r border-border/15 flex-shrink-0" style={{ width: '35%' }}>
                     <div className="px-2 py-1 border-b border-border/30 flex-shrink-0 flex items-center gap-1">
                         <span className="text-[10px] text-text-dim font-medium">目录</span>
                         <div className="ml-auto flex items-center gap-0.5">
@@ -455,7 +455,7 @@ const FileManager: React.FC = () => {
                         <div className="px-2 py-1 border-b border-border/30 flex-shrink-0">
                             <input
                                 ref={searchInputRef}
-                                className="w-full bg-surface-400 border border-border/40 rounded px-1.5 py-0.5 text-[10px] text-text outline-none focus:border-primary-400 transition-colors"
+                                className="w-full bg-surface-50 rounded-xl border-none px-2 py-1 text-[10px] text-text outline-none focus:shadow-[var(--shadow-glow-sm)]"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 onKeyDown={(e) => { if (e.key === 'Escape') { setShowSearch(false); setSearchQuery('') } }}
@@ -477,7 +477,7 @@ const FileManager: React.FC = () => {
                         ) : (
                             <>
                                 <div
-                                    className={`flex items-center gap-1.5 px-2 py-1 cursor-pointer text-[10px] text-text-dim hover:bg-surface-50/40 ${remotePath === '/' ? 'bg-primary-500/10 text-primary-300' : ''}`}
+                                    className={`flex items-center gap-1.5 px-2 py-1 cursor-pointer text-[10px] text-text-dim hover:bg-surface-50/50 rounded-t-lg ${remotePath === '/' ? 'bg-primary-500/10 text-primary-500' : ''}`}
                                     onClick={() => navigateRemote('/')}
                                 >
                                     <FolderIcon />
@@ -486,7 +486,7 @@ const FileManager: React.FC = () => {
                                 {directories.map((dir, i) => (
                                     <div
                                         key={i}
-                                        className={`flex items-center gap-1.5 px-2 py-1 cursor-pointer text-[10px] text-text-dim hover:bg-surface-50/40 ${selectedRemote === dir.path ? 'bg-primary-500/10 text-primary-300' : ''}`}
+                                        className={`flex items-center gap-1.5 px-2 py-1 cursor-pointer text-[10px] text-text-dim hover:bg-surface-50/50 ${i === directories.length - 1 ? 'rounded-b-lg' : ''} ${selectedRemote === dir.path ? 'bg-primary-500/10 text-primary-500' : ''}`}
                                         onClick={() => navigateRemote(dir.path)}
                                         onContextMenu={(e) => getRemoteContextMenu(e, dir)}
                                     >
@@ -511,7 +511,7 @@ const FileManager: React.FC = () => {
                                 showPathInput ? (
                                     <input
                                         ref={pathInputRef}
-                                        className="w-full bg-surface-400 border border-primary-400 rounded px-1.5 py-0.5 text-[10px] font-mono text-text outline-none"
+                                        className="w-full bg-surface-50 rounded-xl border-none px-2 py-1 text-[10px] font-mono text-text outline-none"
                                         value={pathInput}
                                         onChange={(e) => setPathInput(e.target.value)}
                                         onKeyDown={(e) => {
@@ -567,12 +567,14 @@ const FileManager: React.FC = () => {
                             </div>
                         ) : (
                             <>
+                                <div className="mx-1 rounded-xl overflow-hidden">
                                 {filteredFiles.directories.map((file, i) => (
                                     <FileItem key={`dir-${i}`} file={file} isSelected={selectedRemote === file.path} onSelect={setSelectedRemote} onNavigate={navigateRemote} onContextMenu={getRemoteContextMenu} />
                                 ))}
                                 {filteredFiles.filesOnly.map((file, i) => (
                                     <FileItem key={`file-${i}`} file={file} isSelected={selectedRemote === file.path} onSelect={setSelectedRemote} onNavigate={navigateRemote} onContextMenu={getRemoteContextMenu} />
                                 ))}
+                                </div>
                             </>
                         )}
                     </div>
@@ -581,7 +583,7 @@ const FileManager: React.FC = () => {
             </div>
 
             {transfers.filter(t => t.status === 'pending' || t.status === 'completed').length > 0 && (
-                <div className="border-t border-border/30 px-3 py-1.5 max-h-20 overflow-y-auto bg-surface-300/50">
+                <div className="border-t border-border/30 px-3 py-1.5 max-h-20 overflow-y-auto bg-surface-400/50 rounded-xl">
                     <div className="space-y-0.5">
                         {transfers.filter(t => t.status !== 'error').slice(-3).map((task) => {
                             const fileName = task.localPath.split(/[/\\]/).pop()
@@ -611,32 +613,32 @@ const FileManager: React.FC = () => {
             <div className="h-9 border-t border-border/30 flex items-center px-2 gap-0.5 flex-shrink-0">
                 {hasConnection ? (
                     <>
-                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-dim hover:text-text hover:bg-surface-50/40 transition-colors" onClick={handleMkdirRemote} title="新建目录">
+                        <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] transition-colors text-text-dim hover:text-text hover:bg-surface-50/50" onClick={handleMkdirRemote} title="新建目录">
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
                             </svg>
                             <span>新建</span>
                         </button>
-                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-dim hover:text-text hover:bg-surface-50/40 transition-colors disabled:opacity-30" onClick={() => handleRenameRemote()} disabled={!selectedRemote} title="重命名">
+                        <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] transition-colors text-text-dim hover:text-text hover:bg-surface-50/50 disabled:opacity-30" onClick={() => handleRenameRemote()} disabled={!selectedRemote} title="重命名">
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                             <span>重命名</span>
                         </button>
-                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-text-dim hover:text-danger hover:bg-danger/10 transition-colors disabled:opacity-30" onClick={() => handleDeleteRemote()} disabled={!selectedRemote} title="删除">
+                        <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] transition-colors text-danger hover:bg-danger/8 disabled:opacity-30" onClick={() => handleDeleteRemote()} disabled={!selectedRemote} title="删除">
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
                             <span>删除</span>
                         </button>
                         <div className="w-px h-3.5 bg-border/40 mx-1" />
-                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-accent-green hover:bg-accent-green/10 transition-colors" onClick={handleUploadClick} title="上传文件">
+                        <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] transition-colors text-accent-green hover:bg-accent-green/8" onClick={handleUploadClick} title="上传文件">
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M7 13l5-5m0 0l5 5m-5-5v12" />
                             </svg>
                             <span>上传</span>
                         </button>
-                        <button className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-accent-blue hover:bg-accent-blue/10 transition-colors disabled:opacity-30" onClick={handleDownload} disabled={!selectedRemote} title="下载选中文件">
+                        <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] transition-colors text-accent-blue hover:bg-accent-blue/8 disabled:opacity-30" onClick={handleDownload} disabled={!selectedRemote} title="下载选中文件">
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 13l-5 5m0 0l-5-5m5 5V6" />
                             </svg>

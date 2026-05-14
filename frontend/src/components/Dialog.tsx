@@ -103,17 +103,17 @@ function DialogOverlay({ dialog, onResolve }: {
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center" onClick={handleCancel}>
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-md" />
       <div
-        className="relative bg-surface-300 rounded-lg shadow-glass w-full max-w-[380px] mx-4 border border-border/60 animate-slide-up"
+        className="relative glass-panel shadow-glass rounded-2xl overflow-hidden w-full max-w-[340px] mx-4 animate-scale-in"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
-        <div className="px-4 py-3 border-b border-border/40">
+        <div className="text-center px-5 py-4 border-b border-border/20">
           <span className="text-sm font-medium text-text">{dialog.title}</span>
         </div>
 
-        <div className="p-4 space-y-3">
+        <div className="px-5 py-4 space-y-3">
           {dialog.message && (
             <div className="text-xs text-text-muted">{dialog.message}</div>
           )}
@@ -121,7 +121,7 @@ function DialogOverlay({ dialog, onResolve }: {
             <>
               <input
                 ref={inputRef}
-                className="input-field text-xs"
+                className="w-full bg-surface-50 rounded-xl px-3 py-2 text-sm border-none"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder={dialog.placeholder || ''}
@@ -133,7 +133,7 @@ function DialogOverlay({ dialog, onResolve }: {
                     <button
                       key={s}
                       type="button"
-                      className={`px-2 py-0.5 rounded text-[11px] transition-colors ${
+                      className={`rounded-lg px-2.5 py-1 text-[11px] transition-colors ${
                         inputValue === s
                           ? 'bg-primary-500/25 text-primary-400 ring-1 ring-primary-400/40'
                           : 'bg-surface-500/60 text-text-muted hover:bg-surface-50/30 hover:text-text'
@@ -149,15 +149,15 @@ function DialogOverlay({ dialog, onResolve }: {
           )}
         </div>
 
-        <div className="flex justify-end gap-2 px-4 py-3 border-t border-border/40">
-          <button className="btn-ghost text-xs" onClick={handleCancel}>
+        <div className="flex border-t border-border/20">
+          <button className="flex-1 py-2.5 text-sm font-medium text-center text-text-muted transition-colors border-r border-border/20" onClick={handleCancel}>
             {dialog.cancelText || '取消'}
           </button>
           <button
-            className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all duration-150 ${
+            className={`flex-1 py-2.5 text-sm font-semibold text-center transition-colors ${
               dialog.danger
-                ? 'bg-danger/20 text-danger hover:bg-danger/30'
-                : 'btn-primary'
+                ? 'text-danger'
+                : 'text-primary-500'
             }`}
             onClick={handleConfirm}
           >

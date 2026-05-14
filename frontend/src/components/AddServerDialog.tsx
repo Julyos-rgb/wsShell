@@ -89,21 +89,21 @@ const AddServerDialog: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-50">
       <div
-        className="bg-surface-300 rounded-lg shadow-glass w-full max-w-[400px] mx-4 border border-border/60"
+        className="glass-panel rounded-2xl shadow-glass w-full max-w-[400px] mx-4"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
+        <div className="relative flex items-center justify-center px-5 py-3.5 border-b border-border/20">
           <span className="text-sm font-medium text-text">{editingServer ? '编辑服务器' : '添加服务器'}</span>
-          <button className="p-0.5 rounded text-text-dim hover:text-text transition-colors" onClick={handleClose}>
+          <button className="absolute right-5 p-0.5 rounded text-text-dim hover:text-text transition-colors" onClick={handleClose}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        <div className="p-4 space-y-3">
+        <div className="p-4 space-y-2.5">
           <div className="grid grid-cols-3 gap-2">
             <div className="col-span-2 min-w-0">
               <input className="input-field text-xs" value={form.name} onChange={(e) => updateField('name', e.target.value)} placeholder="名称" />
@@ -119,13 +119,13 @@ const AddServerDialog: React.FC = () => {
 
           <input className="input-field text-xs" value={form.username} onChange={(e) => updateField('username', e.target.value)} placeholder="用户名" />
 
-          <div className="flex gap-2">
+          <div className="flex bg-surface-50 rounded-xl p-0.5">
             <button
-              className={`flex-1 py-1.5 text-xs rounded border transition-colors ${form.authType === 'password' ? 'border-primary-400 bg-primary-500/10 text-primary-300' : 'border-border text-text-dim hover:border-border-hover'}`}
+              className={`flex-1 py-1.5 text-xs rounded-lg text-center transition-colors ${form.authType === 'password' ? 'bg-surface-400 text-primary-500 font-semibold shadow-sm' : 'text-text-dim'}`}
               onClick={() => updateField('authType', 'password')}
             >密码认证</button>
             <button
-              className={`flex-1 py-1.5 text-xs rounded border transition-colors ${form.authType === 'key' ? 'border-primary-400 bg-primary-500/10 text-primary-300' : 'border-border text-text-dim hover:border-border-hover'}`}
+              className={`flex-1 py-1.5 text-xs rounded-lg text-center transition-colors ${form.authType === 'key' ? 'bg-surface-400 text-primary-500 font-semibold shadow-sm' : 'text-text-dim'}`}
               onClick={() => updateField('authType', 'key')}
             >密钥认证</button>
           </div>
@@ -147,7 +147,7 @@ const AddServerDialog: React.FC = () => {
           </button>
 
           {showVnc && (
-            <div className="space-y-2 pl-2 border-l-2 border-border/40">
+            <div className="space-y-2 pl-2 border-l-2 border-primary-500/30">
               <label className="flex items-center gap-2 text-xs text-text-muted cursor-pointer">
                 <input type="checkbox" checked={form.vncEnabled} onChange={(e) => updateField('vncEnabled', e.target.checked)} className="rounded" />
                 启用 VNC
@@ -164,9 +164,9 @@ const AddServerDialog: React.FC = () => {
           {error && <div className="text-xs text-danger">{error}</div>}
         </div>
 
-        <div className="flex justify-end gap-2 px-4 py-3 border-t border-border/40">
-          <button className="btn-ghost text-xs" onClick={handleClose}>取消</button>
-          <button className="btn-primary text-xs" onClick={handleSave} disabled={saving}>
+        <div className="flex border-t border-border/20">
+          <button className="flex-1 py-2.5 text-sm font-medium text-center text-text-muted transition-colors border-r border-border/20" onClick={handleClose}>取消</button>
+          <button className="flex-1 py-2.5 text-sm font-semibold text-center text-primary-500 transition-colors" onClick={handleSave} disabled={saving}>
             {saving ? '保存中...' : editingServer ? '更新' : '添加'}
           </button>
         </div>

@@ -436,21 +436,26 @@ const Sidebar: React.FC = () => {
 
   const isSearching = searchQuery.trim().length > 0
 
-  const renderServerItem = (server: ServerConfig) => {
+  const renderServerItem = (server: ServerConfig, index: number = 0, total: number = 1) => {
     const isConnected = server.id in connections
     const isActive = activeServerId === server.id
     const isConnecting = connecting === server.id
     const isSelected = selectedIds.has(server.id)
+    const isFirst = index === 0
+    const isLast = index === total - 1
+    const isOnly = total === 1
+    const roundClass = isOnly ? 'rounded-xl' : isFirst ? 'rounded-t-xl' : isLast ? 'rounded-b-xl' : ''
+    const borderClass = !isLast ? 'border-b border-border/20' : ''
 
     return (
       <div
         key={server.id}
-        className={`group flex items-center gap-2 px-2 py-1.5 mx-1 rounded cursor-pointer transition-colors ${
+        className={`group flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${roundClass} ${borderClass} ${
           isSelected
-            ? 'bg-primary-500/20 text-primary-400 ring-1 ring-primary-400/30'
+            ? 'bg-primary-500/10 text-primary-400 ring-1 ring-primary-400/30'
             : isActive
-              ? 'bg-primary-500/15 text-primary-400'
-              : 'hover:bg-surface-50/40 text-text-muted'
+              ? 'bg-primary-500/10 text-primary-400'
+              : 'hover:bg-surface-50/50 text-text-muted'
         }`}
         onClick={(e) => handleServerClick(e, server)}
         onContextMenu={(e) => handleServerContextMenu(e, server)}
@@ -490,9 +495,9 @@ const Sidebar: React.FC = () => {
         )}
 
         {selectedIds.size > 0 && (
-          <div className="px-2 py-1 border-b border-border/30 flex-shrink-0 flex items-center gap-1">
+          <div className="px-2 py-1 border-b border-border/30 flex-shrink-0 flex items-center gap-1 bg-surface-400">
             <button
-              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-primary-400 hover:bg-primary-500/10 transition-colors"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] text-primary-400 hover:bg-primary-500/10 transition-colors"
               onClick={handleBatchSetGroup}
             >
               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
@@ -501,7 +506,7 @@ const Sidebar: React.FC = () => {
               设置分组
             </button>
             <button
-              className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-danger hover:bg-danger/10 transition-colors"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] text-danger hover:bg-danger/10 transition-colors"
               onClick={handleBatchDelete}
             >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -513,8 +518,8 @@ const Sidebar: React.FC = () => {
         )}
 
         {(
-          <div className="px-2 py-1.5 border-b border-border/30 flex-shrink-0">
-            <div className="flex items-center gap-1.5 bg-surface-500 rounded-md px-2 py-1 border border-border/30">
+          <div className="px-2 py-1.5 flex-shrink-0">
+            <div className="flex items-center gap-1.5 bg-surface-50 rounded-xl px-3 py-1.5">
               <svg className="w-3 h-3 text-text-dim flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
@@ -523,7 +528,7 @@ const Sidebar: React.FC = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索..."
-                className="flex-1 bg-transparent text-[11px] text-text placeholder:text-text-dim/50 outline-none"
+                className="flex-1 bg-transparent text-[11px] text-text placeholder:text-text-dim/60 outline-none"
               />
               {searchQuery && (
                 <button className="text-text-dim hover:text-text transition-colors" onClick={() => setSearchQuery('')}>
@@ -541,7 +546,9 @@ const Sidebar: React.FC = () => {
           onContextMenu={handleBackgroundContextMenu}
         >
           {isSearching ? (
-            filteredServers.map((server) => renderServerItem(server))
+            <div className="mx-2 mb-2 overflow-hidden rounded-xl">
+              {filteredServers.map((server, i) => renderServerItem(server, i, filteredServers.length))}
+            </div>
           ) : (
             <>
               {Array.from(groupedServers.groups.entries()).map(([group, groupServers]) => {
@@ -568,9 +575,11 @@ const Sidebar: React.FC = () => {
                         {connectedCount > 0 ? `${connectedCount}/` : ''}{groupServers.length}
                       </span>
                     </div>
-                    {!isCollapsed && groupServers.map((server) => (
-                      <div className="ml-2">{renderServerItem(server)}</div>
-                    ))}
+                    {!isCollapsed && (
+                      <div className="mx-2 mb-2 overflow-hidden rounded-xl">
+                        {groupServers.map((server, i) => renderServerItem(server, i, groupServers.length))}
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -587,14 +596,18 @@ const Sidebar: React.FC = () => {
                     <span className="text-xs flex-1 font-medium text-text-dim">未分组</span>
                     <span className="text-[9px] text-text-dim">{groupedServers.ungrouped.length}</span>
                   </div>
-                  {!collapsedGroups.has('__ungrouped__') && groupedServers.ungrouped.map((server) => (
-                    <div className="ml-2">{renderServerItem(server)}</div>
-                  ))}
+                  {!collapsedGroups.has('__ungrouped__') && (
+                    <div className="mx-2 mb-2 overflow-hidden rounded-xl">
+                      {groupedServers.ungrouped.map((server, i) => renderServerItem(server, i, groupedServers.ungrouped.length))}
+                    </div>
+                  )}
                 </div>
               )}
 
               {groupedServers.groups.size === 0 && groupedServers.ungrouped.length > 0 && (
-                groupedServers.ungrouped.map((server) => renderServerItem(server))
+                <div className="mx-2 mb-2 overflow-hidden rounded-xl">
+                  {groupedServers.ungrouped.map((server, i) => renderServerItem(server, i, groupedServers.ungrouped.length))}
+                </div>
               )}
             </>
           )}
@@ -623,7 +636,7 @@ const Sidebar: React.FC = () => {
         </div>
 
         <button
-          className="h-8 border-t border-border/30 flex items-center justify-center text-primary-400 hover:bg-primary-500/10 transition-colors"
+          className="h-10 border-t border-border/30 flex items-center justify-center text-primary-500 font-medium hover:bg-primary-500/8 transition-colors"
           onClick={() => { setEditingServer(null); setShowAddServerDialog(true) }}
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

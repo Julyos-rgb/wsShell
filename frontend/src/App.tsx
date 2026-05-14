@@ -185,20 +185,20 @@ function App() {
     <DialogProvider>
     <ToastProvider>
     <div className="flex flex-col h-screen w-screen bg-surface-400 text-text overflow-hidden select-none">
-      <div className="h-10 flex items-center px-4 border-b border-border/30 flex-shrink-0 bg-surface-400">
-        <div className="flex items-center gap-1">
+      <div className="h-11 flex items-center px-4 flex-shrink-0 bg-surface-400/90 backdrop-blur-xl">
+        <div className="flex items-center bg-surface-50/80 rounded-xl p-0.5">
           <button
-            className={`px-3 py-1 text-xs rounded-md transition-all ${isTerminal ? 'text-primary-500 bg-primary-500/10 font-medium' : 'text-text-dim hover:text-text-muted'}`}
+            className={`px-5 py-1 text-xs rounded-lg transition-all duration-200 ${isTerminal ? 'bg-surface-400 text-primary-500 font-semibold shadow-sm' : 'text-text-dim'}`}
             onClick={() => useUIStore.getState().setActiveTab('terminal')}
           >终端</button>
           <button
-            className={`px-3 py-1 text-xs rounded-md transition-all ${!isTerminal ? 'text-primary-500 bg-primary-500/10 font-medium' : 'text-text-dim hover:text-text-muted'}`}
+            className={`px-5 py-1 text-xs rounded-lg transition-all duration-200 ${!isTerminal ? 'bg-surface-400 text-primary-500 font-semibold shadow-sm' : 'text-text-dim'}`}
             onClick={() => useUIStore.getState().setActiveTab('vnc')}
           >VNC 远程桌面</button>
         </div>
         <div className="ml-auto flex items-center gap-2">
           <button
-            className="p-1.5 rounded-md text-text-dim hover:text-text-muted hover:bg-surface-500/50 transition-colors"
+            className="p-2 rounded-xl text-text-dim hover:text-text-muted hover:bg-surface-50/50 transition-colors"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             title={theme === 'dark' ? '切换浅色主题' : '切换深色主题'}
           >
@@ -239,7 +239,7 @@ function App() {
                 <Sidebar />
               </div>
               <div
-                className="h-1.5 cursor-row-resize flex-shrink-0 flex items-center justify-center hover:bg-primary-500/15 transition-colors group"
+                className="h-1.5 cursor-row-resize flex-shrink-0 flex items-center justify-center hover:bg-primary-500/8 transition-colors group"
                 onMouseDown={startDragLeftRow}
               >
                 <div className="w-8 h-[2px] rounded-full bg-border/40 group-hover:bg-primary-400/60 transition-colors" />
@@ -250,7 +250,7 @@ function App() {
             </div>
 
             <div
-              className="w-3 cursor-col-resize flex-shrink-0 flex items-center justify-center hover:bg-primary-500/10 transition-colors group relative"
+              className="w-3 cursor-col-resize flex-shrink-0 flex items-center justify-center hover:bg-primary-500/8 transition-colors group relative"
               onMouseDown={startDragCol}
             >
               <div className="w-[2px] h-10 rounded-full bg-border/40 group-hover:bg-primary-400/60 transition-colors" />
@@ -284,7 +284,7 @@ function App() {
             <Terminal />
           </div>
           <div
-            className="cursor-row-resize flex items-center justify-center hover:bg-primary-500/10 transition-colors group relative"
+            className="cursor-row-resize flex items-center justify-center hover:bg-primary-500/8 transition-colors group relative"
             style={{ display: isTerminal && filePanelVisible ? undefined : 'none' }}
             onMouseDown={startDragRightRow}
           >
@@ -296,7 +296,7 @@ function App() {
             </div>
           </div>
           <div
-            className="flex-shrink-0 flex items-center justify-center hover:bg-primary-500/10 transition-colors group cursor-pointer"
+            className="flex-shrink-0 flex items-center justify-center hover:bg-primary-500/8 transition-colors group cursor-pointer"
             style={{ height: '12px', display: isTerminal && !filePanelVisible ? undefined : 'none' }}
             onClick={() => setFilePanelVisible(true)}
           >
@@ -321,7 +321,7 @@ function App() {
         </div>
       </div>
 
-      <div className="h-8 bg-surface-500/30 border-t border-border/30 flex items-center px-4 flex-shrink-0">
+      <div className="h-7 bg-surface-400/80 backdrop-blur-xl border-t border-border/30 flex items-center px-4 flex-shrink-0">
         <StatusBar />
       </div>
 
